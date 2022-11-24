@@ -33,6 +33,7 @@ RAIDSCSI=$(lspci -nn | grep -ie "raid" -ie "scsi" | wc -l)
 SATAHBA=$(lspci -nn | grep -ie "sata" -ie "sas" | wc -l)
 if [ "$RAIDSCSI" -gt 0 ]; then
 writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
+PORTMAP="1"
 fi
 
 # Dirty flag
@@ -187,8 +188,14 @@ function arcbuild() {
 ###############################################################################
 # Adding Synoinfo and Addons
 function arcdiskconf() {
+  if [ "$DT" = "true" ] && [ "$RAIDSCSI" -gt 0 ]; then
     dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
-        --infobox "ARC Disk configuration started!" 0 0
+      --infobox "Device Tree Model selected - NO Raid/SCSI supported!" 0 0
+    sleep 5
+    exit
+  else
+  dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
+      --infobox "ARC Disk configuration started!" 0 0
     if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "VMware" ] && [ "$SATAHBA" -gt 0 ]; then
     deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
     fi
@@ -212,7 +219,8 @@ function arcdiskconf() {
     dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
       --infobox "ARC Disk configuration successfull!" 0 0  
     sleep 5
-    arcnet
+  arcnet
+  fi
 }
 
 ###############################################################################
@@ -550,12 +558,6 @@ function alldrives() {
         TEXT+="\nTotal of ports: ${NUMPORTS}\n"
         TEXT+="\nPorts with color \Z1red\Zn as DUMMY, color \Z2\Zbgreen\Zn has drive connected."
         TEXT+="\n \n"
-        alldrivessas
-}
-
-###############################################################################
-# Shows available Drives
-function alldrivessas() {
         if [ "$RAIDSCSI" -gt 0 ]; then
         pcis=$(lspci -nn | grep -ie "raid" -ie "scsi" | awk '{print $1}')
         [ ! -z "$pcis" ]
@@ -711,7 +713,7 @@ function selectModules() {
   done < <(readConfigMap "modules" "${USER_CONFIG_FILE}")
   # menu loop
   while true; do
-    dialog --backtitle "`backtitle`" --menu "Choose a option" 0 0 0 \
+    dialog --backtitle "`backtitle`" --menu "Choose an Option" 0 0 0 \
       s "Show selected Modules" \
       a "Select all Modules" \
       d "Deselect all Modules" \
@@ -1002,7 +1004,6 @@ function sysinfo() {
         else
         TEXT+="\nNo Drives found\Zn"
         fi
-        TEXT+="\n"
         TEXT+="\nModules: \Zb${MODULESINFO}\n"
         TEXT+="\n"
         dialog --backtitle "`backtitle`" --title "Systeminformation" --aspect 18 --colors --msgbox "${TEXT}" 0 0 
@@ -1016,15 +1017,15 @@ function cmdlineMenu() {
   while IFS="=" read KEY VALUE; do
     [ -n "${KEY}" ] && CMDLINE["${KEY}"]="${VALUE}"
   done < <(readConfigMap "cmdline" "${USER_CONFIG_FILE}")
-  echo "a \"Add/edit a cmdline item\""                          > "${TMP_PATH}/menu"
-  echo "d \"Delete cmdline item(s)\""                           >> "${TMP_PATH}/menu"
+  echo "a \"Add/edit a Cmdline item\""                          > "${TMP_PATH}/menu"
+  echo "d \"Delete Cmdline item(s)\""                           >> "${TMP_PATH}/menu"
   echo "c \"Define a custom MAC\""                              >> "${TMP_PATH}/menu"
-  echo "s \"Show user cmdline\""                                >> "${TMP_PATH}/menu"
-  echo "m \"Show Model/Build cmdline\""                         >> "${TMP_PATH}/menu"
+  echo "s \"Show user Cmdline\""                                >> "${TMP_PATH}/menu"
+  echo "m \"Show Model/Build Cmdline\""                         >> "${TMP_PATH}/menu"
   echo "e \"Exit\""                                             >> "${TMP_PATH}/menu"
   # Loop menu
   while true; do
-    dialog --backtitle "`backtitle`" --menu "Choose a option" 0 0 0 \
+    dialog --backtitle "`backtitle`" --menu "Choose an Option" 0 0 0 \
       --file "${TMP_PATH}/menu" 2>${TMP_PATH}/resp
     [ $? -ne 0 ] && return
     case "`<${TMP_PATH}/resp`" in
@@ -1119,18 +1120,18 @@ function synoinfoMenu() {
     [ -n "${KEY}" ] && SYNOINFO["${KEY}"]="${VALUE}"
   done < <(readConfigMap "synoinfo" "${USER_CONFIG_FILE}")
 
-  echo "a \"Add/edit synoinfo item\""     > "${TMP_PATH}/menu"
-  echo "d \"Delete synoinfo item(s)\""    >> "${TMP_PATH}/menu"
+  echo "a \"Add/edit Synoinfo item\""     > "${TMP_PATH}/menu"
+  echo "d \"Delete Synoinfo item(s)\""    >> "${TMP_PATH}/menu"
   if [ "${DT}" != "true" ]; then
     echo "x \"Set maxdisks manually\""    >> "${TMP_PATH}/menu"
   fi
   echo "t \"Map USB Drive to internal\""  >> "${TMP_PATH}/menu"
-  echo "s \"Show synoinfo entries\""      >> "${TMP_PATH}/menu"
+  echo "s \"Show Synoinfo entries\""      >> "${TMP_PATH}/menu"
   echo "e \"Exit\""                       >> "${TMP_PATH}/menu"
 
   # menu loop
   while true; do
-    dialog --backtitle "`backtitle`" --menu "Choose a option" 0 0 0 \
+    dialog --backtitle "`backtitle`" --menu "Choose an Option" 0 0 0 \
       --file "${TMP_PATH}/menu" 2>${TMP_PATH}/resp
     [ $? -ne 0 ] && return
     case "`<${TMP_PATH}/resp`" in
@@ -1218,23 +1219,30 @@ while true; do
   if loaderIsConfigured; then
   echo "b \"Boot the Loader \" "                                                            >> "${TMP_PATH}/menu"
   fi
-  echo "= \"======== Enhanced ======== \" "                                                 >> "${TMP_PATH}/menu"
+  echo "= \"========= System ========= \" "                                                 >> "${TMP_PATH}/menu"
   echo "g \"Show Controller/Drives \" "                                                     >> "${TMP_PATH}/menu"
   echo "t \"Systeminfo \" "                                                                 >> "${TMP_PATH}/menu"
-  if [ "$RAIDSCSI" -gt 0 ]; then
-  echo "j \"RAID/SCSI Controller enabled \" "                                               >> "${TMP_PATH}/menu"
-  elif [ "$SATAHBA" -gt 0 ]; then
-  echo "j \"RAID/SCSI Controller disabled \" "                                              >> "${TMP_PATH}/menu"
+  if [ -n "${PORTMAP}" ]; then
+  echo "j \"RAID/SCSI Mode enabled \" "                                                     >> "${TMP_PATH}/menu"
+  else
+  echo "j \"RAID/SCSI Mode disabled \" "                                                    >> "${TMP_PATH}/menu"
   fi
   if [ -n "${MODEL}" ]; then
-  echo "+ \"======== Config ======== \" "                                                   >> "${TMP_PATH}/menu"
+  echo "+ \"======= Enhanced ======= \" "                                                   >> "${TMP_PATH}/menu"
   echo "a \"Addons \" "                                                                     >> "${TMP_PATH}/menu"
   echo "o \"Modules \" "                                                                    >> "${TMP_PATH}/menu"
+  if [ "${ADV}" = "" ]; then
+  echo "z \"Show Advanced Options \" "                                                      >> "${TMP_PATH}/menu"
+  elif [ "${ADV}" = "1" ]; then
+  echo "z \"Hide Advanced Options \" "                                                      >> "${TMP_PATH}/menu"
+  fi
+  if [ -n "${ADV}" ]; then
+  echo "x \"Cmdline \" "                                                                    >> "${TMP_PATH}/menu"
+  echo "i \"Synoinfo \" "                                                                   >> "${TMP_PATH}/menu"
   echo "u \"Edit user config \" "                                                           >> "${TMP_PATH}/menu"
-  echo "x \"Cmdline menu \" "                                                               >> "${TMP_PATH}/menu"
-  echo "i \"Synoinfo menu \" "                                                              >> "${TMP_PATH}/menu"
   echo "l \"Switch LKM version: \Z4${LKM}\Zn\""                                             >> "${TMP_PATH}/menu"
   echo "r \"Switch direct boot: \Z4${DIRECTBOOT}\Zn \" "                                    >> "${TMP_PATH}/menu"
+  fi
   fi
   echo "# \"======== Settings ======== \" "                                                 >> "${TMP_PATH}/menu"
   echo "k \"Choose a keymap \" "                                                            >> "${TMP_PATH}/menu"
@@ -1242,7 +1250,7 @@ while true; do
   echo "p \"Update Menu\" "                                                                 >> "${TMP_PATH}/menu"
   echo "e \"Exit\" "                                                                        >> "${TMP_PATH}/menu"
   dialog --clear --default-item ${NEXT} --backtitle "`backtitle`" --colors \
-    --menu "Choose the option" 0 0 0 --file "${TMP_PATH}/menu" \
+    --menu "Choose an Option" 0 0 0 --file "${TMP_PATH}/menu" \
     2>${TMP_PATH}/resp
   [ $? -ne 0 ] && break
   case `<"${TMP_PATH}/resp"` in
@@ -1250,8 +1258,9 @@ while true; do
     l) make; NEXT="b" ;;
     b) boot ;;
     g) alldrives ;;
+    t) sysinfo ;;
     j) [ "${PORTMAP}" = "" ] && PORTMAP='1' || PORTMAP=''
-       if [ -n "$PORTMAP" ]; then
+       if [ -n "${PORTMAP}" ]; then
        writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
        readConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
        backtitle
@@ -1264,13 +1273,15 @@ while true; do
     a) addonMenu ;;
     o) selectModules ;;
     u) editUserConfig ;;
-    t) sysinfo ;;
+    z) [ "${ADV}" = "" ] && ADV='1' || ADV=''
+       ARV="${ADV}"
+       ;;
     x) cmdlineMenu ;;
     i) synoinfoMenu ;;
     l) [ "${LKM}" = "dev" ] && LKM='prod' || LKM='dev'
       writeConfigKey "lkm" "${LKM}" "${USER_CONFIG_FILE}"
       DIRTY=1
-      NEXT="o"
+      NEXT="l"
       ;;
     r) [ "${DIRECTBOOT}" = "false" ] && DIRECTBOOT='true' || DIRECTBOOT='false'
     writeConfigKey "directboot" "${DIRECTBOOT}" "${USER_CONFIG_FILE}"
