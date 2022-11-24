@@ -41,9 +41,11 @@ I developed a simple patch to no longer display the DUMMY port error on models w
   - AMD (working for me with 5600X, if not use manual setup and select V1000)
 
 - Ethernet:
-  - Aquantia AQtion AQC107 / AQC111 / AQC113
-  - Intel E1000 / E1000e
-  - Realtek RTL 8125 / 8169
+  - Aquantia AQtion AQC107/AQC111/AQC113
+  - Intel E1000/E1000e
+  - Intel i219/i225
+  - Marvel FastLinQ Edge
+  - Realtek R8125/R8169
   - VMWare VMXNet3
   - VirtIO Net
 
@@ -54,6 +56,8 @@ I developed a simple patch to no longer display the DUMMY port error on models w
 - SATA:
   - VMWare SATA
   - Intel Native SATA 3rd to 12th Gen
+  - AMD Native SATA
+  - Asmedia SATA Controller 
 
 - Hypervisor:
   - VMware vSphere ESXi (up to 7.0U3)
@@ -61,9 +65,10 @@ I developed a simple patch to no longer display the DUMMY port error on models w
   - Proxmox
 
 - NVMe
-  - WD SN700
-  - WD SN850
+  - WD Red SN700
+  - WD Black SN850
   - Samsung 970 Evo (Plus)
+  - Samsung 980/980 Pro
 
 # Thanks
 
