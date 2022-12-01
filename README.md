@@ -38,7 +38,7 @@ I developed a simple patch to no longer display the DUMMY port error on models w
 
 - CPU:
   - Intel (looks like all)
-  - AMD (working for me with 5600X, if not use manual setup and select V1000)
+  - AMD (working for me with 5600X)
 
 - Ethernet:
   - Aquantia AQtion AQC107/AQC111/AQC113
