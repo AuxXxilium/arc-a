@@ -7,14 +7,11 @@
 
 # Check partition 3 space, if < 2GiB is necessary clean cache folder
 CLEARCACHE=0
-LOADER_DISK="`blkid | grep 'LABEL="ARPL3"' | cut -d3 -f1`"
+LOADER_DISK="`blkid | grep 'LABEL="ARC3"' | cut -d3 -f1`"
 LOADER_DEVICE_NAME=`echo ${LOADER_DISK} | sed 's|/dev/||'`
 if [ `cat /sys/block/${LOADER_DEVICE_NAME}/${LOADER_DEVICE_NAME}3/size` -lt 4194304 ]; then
   CLEARCACHE=1
 fi
-
-# Export latest Build to userconfig
-writeConfigKey "build" "42962" "${USER_CONFIG_FILE}"
 
 # Export Network Adapter
 lshw -class network -short > "${TMP_PATH}/netconf"
@@ -34,6 +31,8 @@ SATAHBA=$(lspci -nn | grep -ie "sata" -ie "sas" | wc -l)
 if [ "$RAIDSCSI" -gt 0 ]; then
 writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
 PORTMAP="1"
+else
+PORTMAP="0"
 fi
 
 # Dirty flag
@@ -101,6 +100,8 @@ function backtitle() {
 # Make Model Config
 function arcMenu() {
   NEXT="l"
+  # Export latest Build to userconfig
+  writeConfigKey "build" "42962" "${USER_CONFIG_FILE}"
   # Loop menu
   RESTRICT=1
   FLGBETA=0
@@ -114,8 +115,6 @@ function arcMenu() {
       M="${M::-4}"
       PLATFORM=`readModelKey "${M}" "platform"`
       DT="`readModelKey "${M}" "dt"`"
-      BETA="`readModelKey "${M}" "beta"`"
-      [ "${BETA}" = "true" -a ${FLGBETA} -eq 0 ] && continue
       # Check id model is compatible with CPU
       COMPATIBLE=1
       if [ ${RESTRICT} -eq 1 ]; then
@@ -196,25 +195,17 @@ function arcdiskconf() {
   else
   dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
       --infobox "ARC Disk configuration started!" 0 0
-    if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "VMware" ] && [ "$SATAHBA" -gt 0 ]; then
-    deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
-    fi
+    delteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
+    deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
     if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "VMware" ] && [ "$RAIDSCSI" -gt 0 ]; then
     writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
-    fi
-    if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "KVM" ] && [ "$SATAHBA" -gt 0 ]; then
-    delteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
     fi
     if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "KVM" ] && [ "$RAIDSCSI" -gt 0 ]; then
     writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
     fi
-    if [ "$MASHINE" != "VIRTUAL" ] && [ "$SATAHBA" -gt 0 ]; then
-    delteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
-    fi
     if [ "$MASHINE" != "VIRTUAL" ] && [ "$RAIDSCSI" -gt 0 ]; then
     writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
     fi
-    deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
     PORTMAP="`readConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"`"
     dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
       --infobox "ARC Disk configuration successfull!" 0 0  
@@ -226,6 +217,7 @@ function arcdiskconf() {
 ###############################################################################
 # Make Network Config
 function arcnet() {
+  # Check for man models and write network config
   MODEL="`readConfigKey "model" "${USER_CONFIG_FILE}"`"
   MAC1="`readModelKey "${MODEL}" "mac1"`"
   MAC2="`readModelKey "${MODEL}" "mac2"`"
@@ -613,7 +605,7 @@ function addonMenu() {
   # Loop menu
   while true; do
     dialog --backtitle "`backtitle`" --default-item ${NEXT} \
-      --menu "Choose an Option" 0 0 0 \
+      --menu "Choose an option" 0 0 0 \
       a "Add an Addon" \
       d "Delete Addon(s)" \
       s "Show user Addons" \
@@ -626,11 +618,11 @@ function addonMenu() {
       a) NEXT='a'
         rm "${TMP_PATH}/menu"
         while read ADDON DESC; do
-          arrayExistItem "${ADDON}" "${!ADDONS[@]}" && continue
+          arrayExistItem "${ADDON}" "${!ADDONS[@]}" && continue          # Check if addon has already been added
           echo "${ADDON} \"${DESC}\"" >> "${TMP_PATH}/menu"
         done < <(availableAddons "${PLATFORM}" "${KVER}")
         if [ ! -f "${TMP_PATH}/menu" ] ; then 
-          dialog --backtitle "`backtitle`" --msgbox "No available addons to add" 0 0 
+          dialog --backtitle "`backtitle`" --msgbox "No available Addons to add" 0 0 
           NEXT="e"
           continue
         fi
@@ -640,7 +632,7 @@ function addonMenu() {
         ADDON="`<"${TMP_PATH}/resp"`"
         [ -z "${ADDON}" ] && continue
         dialog --backtitle "`backtitle`" --title "params" \
-          --inputbox "Type a opcional params to addon" 0 0 \
+          --inputbox "Type a optional params to Addon" 0 0 \
           2>${TMP_PATH}/resp
         [ $? -ne 0 ] && continue
         ADDONS[${ADDON}]="`<"${TMP_PATH}/resp"`"
@@ -657,7 +649,7 @@ function addonMenu() {
           ITEMS+="${I} ${I} off "
         done
         dialog --backtitle "`backtitle`" --no-tags \
-          --checklist "Select addon to remove" 0 0 0 ${ITEMS} \
+          --checklist "Select Addon to remove" 0 0 0 ${ITEMS} \
           2>"${TMP_PATH}/resp"
         [ $? -ne 0 ] && continue
         ADDON="`<"${TMP_PATH}/resp"`"
@@ -1251,10 +1243,10 @@ while true; do
   echo "+ \"======= Enhanced ======= \" "                                                   >> "${TMP_PATH}/menu"
   echo "a \"Addons \" "                                                                     >> "${TMP_PATH}/menu"
   echo "o \"Modules \" "                                                                    >> "${TMP_PATH}/menu"
-  if [ "${ADV}" = "" ]; then
-  echo "z \"Show Advanced Options \" "                                                      >> "${TMP_PATH}/menu"
-  elif [ "${ADV}" = "1" ]; then
+  if [ -n "${ADV}" ]; then
   echo "z \"Hide Advanced Options \" "                                                      >> "${TMP_PATH}/menu"
+  else
+  echo "z \"Show Advanced Options \" "                                                      >> "${TMP_PATH}/menu"
   fi
   if [ -n "${ADV}" ]; then
   echo "x \"Cmdline \" "                                                                    >> "${TMP_PATH}/menu"
