@@ -2,7 +2,7 @@
 
 # Important
 
-## It is highly recommended to use an SSD for the loader in the case of the option via DoM or a fast USB flash drive
+## It is highly recommended to use a fast USB flash drive
 
 ## You must have at least 4GB of RAM, both in baremetal and VMs
 
