@@ -61,8 +61,8 @@ I developed a simple patch to no longer display the DUMMY port error on models w
 
 - Hypervisor:
   - VMware vSphere ESXi (up to 7.0U3)
-  - unRaid
-  - Proxmox
+  - unRaid (depends on config)
+  - Proxmox (depends on config)
 
 - NVMe
   - WD Red SN700
