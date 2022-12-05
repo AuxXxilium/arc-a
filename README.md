@@ -27,48 +27,56 @@ I developed a simple patch to no longer display the DUMMY port error on models w
 # Choose a Model
 
 - DS3622xs+ / RS4021xs+
-  - For best Hardwaresupport you should use one of them.
-  - Support for RAID/SCSI/HBA Controllers
+  + best Hardwaresupport
+  + Support for RAID/SCSI/HBA Controller
+  + NVMe Cache through Addon working
+  + Support for Hypervisor (read more below)
+  - actually no Hardwareacceleration with Intel Graphics
 
-- DS920+ / DS1621+ / DVA3219 / DVA3221
-  - Possible to get i915 (Intel Graphics) working
-  - No Support for RAID/SCSI/HBA Controllers
+- DS918+ / DS920+ / DS1621+ / DVA3219 / DVA3221
+  + Possible to get i915 (Intel Graphics) working
+  + NVMe Cache through Addon working
+  - No Support for RAID/SCSI/HBA Controller
+  - Only support for SATA Controller
+  - CPU needs FMA3 Instructions
+  - Can make trouble in Hypervisor
 
 # ARC Loader - Confirmed working
 
 - CPU:
-  - Intel (looks like all)
-  - AMD (working for me with 5600X)
+  + Intel (looks like all)
+  + AMD (working for me with 5600X)
 
 - Ethernet:
-  - Aquantia AQtion AQC107/AQC111/AQC113
-  - Intel E1000/E1000e
-  - Intel i219/i225
-  - Marvel FastLinQ Edge
-  - Realtek R8125/R8169
-  - VMWare VMXNet3
-  - VirtIO Net
+  + Aquantia AQtion AQC107/AQC111/AQC113
+  + Broadcom NetXtreme BCM5719
+  + Intel E1000/E1000e
+  + Intel i211/i219/i225/i350
+  + Marvel FastLinQ Edge
+  + Realtek R8125/R8169
+  + VMWare VMXNet3
+  + VirtIO Net
 
 - SAS/SCSI:
-  - VMWare PVSCSI (with Comandline - SataPortMap = 1)
-  - VirtIO SCSI (with Comandline - SataPortMap = 1)
+  + VMWare PVSCSI (with Comandline - SataPortMap = 1)
+  + VirtIO SCSI (with Comandline - SataPortMap = 1)
 
 - SATA:
-  - VMWare SATA
-  - Intel Native SATA 3rd to 12th Gen
-  - AMD Native SATA
-  - Asmedia SATA Controller 
+  + VMWare SATA
+  + Intel Native SATA 3rd to 12th Gen
+  + AMD Native SATA
+  + Asmedia SATA Controller 
 
 - Hypervisor:
-  - VMware vSphere ESXi (up to 7.0U3)
-  - unRaid (depends on config)
-  - Proxmox (depends on config)
+  + VMware vSphere ESXi (up to 7.0U3)
+  + unRaid (depends on config)
+  + Proxmox (depends on config)
 
 - NVMe
-  - WD Red SN700
-  - WD Black SN850
-  - Samsung 970 Evo (Plus)
-  - Samsung 980/980 Pro
+  + WD Red SN700
+  + WD Black SN850
+  + Samsung 970 Evo (Plus)
+  + Samsung 980/980 Pro
 
 # Thanks
 
