@@ -25,16 +25,6 @@ if grep -q ^flags.*\ hypervisor\  /proc/cpuinfo; then
     HYPERVISOR=$(lscpu | grep Hypervisor | awk '{print $3}')
 fi
 
-# Get DISK Config
-RAIDSCSI=$(lspci -nn | grep -ie "raid" -ie "scsi" | wc -l)
-SATAHBA=$(lspci -nn | grep -ie "sata" -ie "sas" | wc -l)
-if [ "$RAIDSCSI" -gt 0 ]; then
-writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
-PORTMAP="1"
-else
-PORTMAP=""
-fi
-
 # Dirty flag
 DIRTY=0
 
@@ -45,6 +35,7 @@ KEYMAP="`readConfigKey "keymap" "${USER_CONFIG_FILE}"`"
 LKM="`readConfigKey "lkm" "${USER_CONFIG_FILE}"`"
 DIRECTBOOT="`readConfigKey "directboot" "${USER_CONFIG_FILE}"`"
 SN="`readConfigKey "sn" "${USER_CONFIG_FILE}"`"
+PORTMAP="`readConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"`"
 
 ###############################################################################
 # Mounts backtitle dynamically
@@ -74,24 +65,16 @@ function backtitle() {
     BACKTITLE+=" (no IP)"
   fi
     BACKTITLE+=" |"
-  if [ "$RAIDSCSI" -gt 0 ]; then
+  if [ -n "${PORTMAP}" ]; then
     BACKTITLE+=" RAID/SCSI"
-  elif [ "$SATAHBA" -gt 0 ]; then
-    BACKTITLE+=" SATA/HBA"
   else
-    BACKTITLE+=" No HDD found"
+    BACKTITLE+=" SATA/HBA"
   fi
     BACKTITLE+=" |"
   if [ -n "${HYPERVISOR}" ]; then
     BACKTITLE+=" ${HYPERVISOR}"
   else
-    BACKTITLE+=" Baremetal"
-  fi
-    BACKTITLE+=" |"
-  if [ -n "${KEYMAP}" ]; then
-    BACKTITLE+=" (${LAYOUT}/${KEYMAP})"
-  else
-    BACKTITLE+=" (qwerty/us)"
+    BACKTITLE+=" Native"
   fi
   echo ${BACKTITLE}
 }
@@ -200,37 +183,7 @@ function arcbuild() {
   DIRTY=1
   dialog --backtitle "`backtitle`" --title "ARC Model Config" \
     --infobox "Model Configuration successfull!" 0 0  
-  arcdiskconf
-}
-
-###############################################################################
-# Adding Synoinfo and Addons
-function arcdiskconf() {
-  if [ "$DT" = "true" ] && [ "$RAIDSCSI" -gt 0 ]; then
-    dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
-      --infobox "Device Tree Model selected - Raid/SCSI Controller not supported!" 0 0
-    sleep 5
-    exit
-  else
-  dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
-      --infobox "ARC Disk configuration started!" 0 0
-    delteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
-    deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
-    if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "VMware" ] && [ "$RAIDSCSI" -gt 0 ]; then
-    writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
-    fi
-    if [ "$MASHINE" = "VIRTUAL" ] && [ "$HYPERVISOR" = "KVM" ] && [ "$RAIDSCSI" -gt 0 ]; then
-    writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
-    fi
-    if [ "$MASHINE" != "VIRTUAL" ] && [ "$RAIDSCSI" -gt 0 ]; then
-    writeConfigKey "cmdline.SataPortMap" "1" "${USER_CONFIG_FILE}"
-    fi
-    PORTMAP="`readConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"`"
-    dialog --backtitle "`backtitle`" --title "ARC Disk Config" \
-      --infobox "ARC Disk configuration successfull!" 0 0  
-    sleep 5
   arcnet
-  fi
 }
 
 ###############################################################################
@@ -267,14 +220,14 @@ function arcnet() {
   fi
   dialog --backtitle "`backtitle`" \
           --title "Load ARC MAC Table" --infobox "Set new MAC for ${NETNUM} Adapter" 0 0
-  sleep 5
+  sleep 3
   /etc/init.d/S41dhcpcd restart 2>&1 | dialog --backtitle "`backtitle`" \
     --title "Restart DHCP" --progressbox "Renewing IP" 20 70
   sleep 5
   IP=`ip route get 1.1.1.1 2>/dev/null | awk '{print$7}'`
   dialog --backtitle "`backtitle`" --title "ARC Config" \
       --infobox "ARC Network configuration successfull!" 0 0
-  sleep 5
+  sleep 3
   dialog --clear --no-items --backtitle "`backtitle`"
 }
 
@@ -1002,7 +955,7 @@ function updateMenu() {
 # Shows Systeminfo to user
 function sysinfo() {
         TYPEINFO=$(vserver=$(lscpu | grep Hypervisor | wc -l)
-            if [ $vserver -gt 0 ]; then echo "VM"; else echo "Baremetal"; fi
+            if [ $vserver -gt 0 ]; then echo "VM"; else echo "Native"; fi
         )
         CPUINFO=$(awk -F':' '/^model name/ {print $2}' /proc/cpuinfo | uniq | sed -e 's/^[ \t]*//')
         MEMINFO=$(free -g | awk 'NR==2' | awk '{print $2}')
@@ -1013,25 +966,21 @@ function sysinfo() {
         MODULESINFO=$(kmod list | awk '{print$1}' | awk 'NR>1')
         TEXT=""
         TEXT+="\nSystem: \Zb${TYPEINFO}\Zn"
-        if [ -n $HYPERVISOR ]; then
-        TEXT+="\nHypervisor: \Zb$HYPERVISOR\Zn\n"
+        if [ -n ${HYPERVISOR} ]; then
+        TEXT+="\nHypervisor: \Zb${HYPERVISOR}\Zn\n"
         fi
         TEXT+="\nCPU: \Zb${CPUINFO}\Zn"
         TEXT+="\nRAM: \Zb${MEMINFO}GB\Zn\n"
-        if [ "$RAIDSCSI" -gt 0 ]; then
+        if [ -n "${PORTMAP}" ]; then
         TEXT+="\nStorage Mode: \ZbSCSI/RAID Mode enabled\Zn\n"
-        elif [ "$SATAHBA" -gt 0 ]; then
-        TEXT+="\nStorage Mode: \ZbSATA/HBA Mode enabled\Zn\n"
         else
-        TEXT+="\nStorage Mode: \ZbNo Controller found\Zn\n"
+        TEXT+="\nStorage Mode: \ZbSATA/HBA Mode enabled\Zn\n"
         fi
-        if [ "$RAIDSCSI" -gt 0 ]; then
+        if [ -n "${PORTMAP}" ]; then
         TEXT+="\nRAID/SCSI Controller dedected:\n\Zb${SCSIINFO}\Zn\n"
         TEXT+="\nSATA/HBA Controller dedected:\n\Zb${SATAINFO}\Zn\n"      
-        elif [ "$SATAHBA" -gt 0 ]; then
-        TEXT+="\nSATA/HBA Controller dedected:\n\Zb${SATAINFO}\Zn"
         else
-        TEXT+="\nNo Drives found\Zn"
+        TEXT+="\nSATA/HBA Controller dedected:\n\Zb${SATAINFO}\Zn"
         fi
         TEXT+="\nModules: \Zb${MODULESINFO}\n"
         TEXT+="\n"
@@ -1281,7 +1230,7 @@ while true; do
   echo "x \"Cmdline \" "                                                                    >> "${TMP_PATH}/menu"
   echo "i \"Synoinfo \" "                                                                   >> "${TMP_PATH}/menu"
   echo "u \"Edit user config \" "                                                           >> "${TMP_PATH}/menu"
-  echo "t \"DSM Recovery \" "                                                               >> "${TMP_PATH}/menu"
+  echo "v \"DSM Recovery \" "                                                               >> "${TMP_PATH}/menu"
   echo "l \"Switch LKM version: \Z4${LKM}\Zn\" "                                            >> "${TMP_PATH}/menu"
   echo "r \"Switch direct boot: \Z4${DIRECTBOOT}\Zn \" "                                    >> "${TMP_PATH}/menu"
   fi
@@ -1320,7 +1269,7 @@ while true; do
        ;;
     x) cmdlineMenu ;;
     i) synoinfoMenu ;;
-    t) tryRecoveryDSM ;;
+    v) tryRecoveryDSM ;;
     l) [ "${LKM}" = "dev" ] && LKM='prod' || LKM='dev'
       writeConfigKey "lkm" "${LKM}" "${USER_CONFIG_FILE}"
       DIRTY=1
