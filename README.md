@@ -27,11 +27,11 @@ I developed a simple patch to no longer display the DUMMY port error on models w
 # Choose a Model
 
 - DS3622xs+ / RS4021xs+
-  + best Hardwaresupport
+  + Best Hardwaresupport
   + Support for RAID/SCSI/HBA Controller
   + NVMe Cache through Addon working
   + Support for Hypervisor (read more below)
-  - actually no Hardwareacceleration with Intel Graphics
+  - Actually no Hardwareacceleration with Intel Graphics
 
 - DS918+ / DS920+ / DS1621+ / DVA3219 / DVA3221
   + Possible to get i915 (Intel Graphics) working
