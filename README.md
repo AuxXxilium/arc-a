@@ -51,7 +51,7 @@ I developed a simple patch to no longer display the DUMMY port error on models w
   + Aquantia AQtion AQC107/AQC111/AQC113
   + Broadcom NetXtreme BCM5719
   + Intel E1000/E1000e
-  + Intel i211/i219/i225/i350
+  + Intel i211/i219/i225/i226/i350
   + Marvel FastLinQ Edge
   + Realtek R8125/R8169
   + VMWare VMXNet3
