@@ -1,4 +1,4 @@
-<a href="https://wakatime.com/badge/github/AuxXxilium/arc"><img src="https://wakatime.com/badge/github/AuxXxilium/arc.svg" alt="wakatime"></a>
+[![wakatime](https://wakatime.com/badge/github/AuxXxilium/arc.svg)](https://wakatime.com/badge/github/AuxXxilium/arc)
 
 # ARC Redpill Loader
 
