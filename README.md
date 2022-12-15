@@ -1,16 +1,16 @@
-## Arc Project Status: [![Build image](https://github.com/AuxXxilium/arc/actions/workflows/main.yml/badge.svg)](https://github.com/AuxXxilium/arc/actions/workflows/main.yml) [![wakatime](https://wakatime.com/badge/github/AuxXxilium/arc.svg)](https://wakatime.com/badge/github/AuxXxilium/arc)
-
 # ARC Redpill Loader
 
-# Important
+## Project Status: [![Build image](https://github.com/AuxXxilium/arc/actions/workflows/main.yml/badge.svg)](https://github.com/AuxXxilium/arc/actions/workflows/main.yml) [![wakatime](https://wakatime.com/badge/github/AuxXxilium/arc.svg)](https://wakatime.com/badge/github/AuxXxilium/arc)
 
-## It is highly recommended to use a fast USB flash drive
+## Important
 
-## You must have at least 4GB of RAM, both in baremetal and VMs
+### It is highly recommended to use a fast USB flash drive
 
-## The DSM kernel is compatible with SATA ports, not SAS/SCSI/etc. For device-tree models (DT) only SATA ports work. For the other models, another type of disks may work.
+### You must have at least 4GB of RAM, both in baremetal and VMs
 
-# Use
+### The DSM kernel is compatible with SATA ports, not SAS/SCSI/etc. For device-tree models (DT) only SATA ports work. For the other models, another type of disks may work.
+
+## Use
 
 To use this project, download the latest image available and burn it to a USB stick or SATA disk-on-module. Set the PC to boot from the burned media and follow the informations on the screen. When booting, the user can call the "arc.sh" (automated setup) command from the computer itself, access via SSH. You can also use the virtual terminal (ttyd) by typing the address provided on the screen (http://(ip):7681). The Loader will start "arc.sh" and you can select wich menu you want. The loader will automatically increase the size of the last partition and use this space as cache if it is larger than 2GiB.
 
@@ -26,7 +26,7 @@ Another important point is that the loader detects whether or not the CPU has th
 
 I developed a simple patch to no longer display the DUMMY port error on models without device-tree, the user will be able to install without having to worry about it.
 
-# Choose a Model
+## Choose a Model
 
 - DS3622xs+ / RS4021xs+
   + Best Hardwaresupport
@@ -43,7 +43,7 @@ I developed a simple patch to no longer display the DUMMY port error on models w
   - CPU needs FMA3 Instructions
   - Can make trouble in Hypervisor
 
-# ARC Loader - Confirmed working
+## ARC Loader - Confirmed working
 
 - CPU:
   + Intel (looks like all)
@@ -80,7 +80,7 @@ I developed a simple patch to no longer display the DUMMY port error on models w
   + Samsung 970 Evo (Plus)
   + Samsung 980/980 Pro
 
-# Thanks
+## Thanks
 
 All code was based on the work of TTG, pocopico, jumkey, fbelavenuto and others involved in continuing TTG's original redpill-load project.
 
