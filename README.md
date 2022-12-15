@@ -1,3 +1,5 @@
+<a href="https://wakatime.com/badge/github/AuxXxilium/arc"><img src="https://wakatime.com/badge/github/AuxXxilium/arc.svg" alt="wakatime"></a>
+
 # ARC Redpill Loader
 
 # Important
