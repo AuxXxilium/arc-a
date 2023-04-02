@@ -33,7 +33,10 @@ fi
 # Dirty flag
 DIRTY=0
 
+# Define Model for automated
 MODEL="RS4021xs+"
+
+# Read config
 BUILD="`readConfigKey "build" "${USER_CONFIG_FILE}"`"
 LAYOUT="`readConfigKey "layout" "${USER_CONFIG_FILE}"`"
 KEYMAP="`readConfigKey "keymap" "${USER_CONFIG_FILE}"`"
@@ -158,21 +161,18 @@ function arcnetdisk() {
   dialog --backtitle "`backtitle`" \
     --title "Arc Network" --infobox " ${NETNUM} Adapter dedected" 0 0
   # Install with Arc Patch - Check for model config and set custom Mac Address
-  if [ "${resp}" = "1" ]; then
-      writeConfigKey "cmdline.mac1"           "${MAC1}" "${USER_CONFIG_FILE}"
-    if [ "${NETNUM}" -gt 1 ]; then
-      writeConfigKey "cmdline.mac2"           "${MAC2}" "${USER_CONFIG_FILE}"
-    fi
-    if [ "${NETNUM}" -gt 2 ]; then
-      writeConfigKey "cmdline.mac3"           "${MAC3}" "${USER_CONFIG_FILE}"
-    fi
-    if [ "${NETNUM}" -gt 3 ]; then
-      writeConfigKey "cmdline.mac4"           "${MAC4}" "${USER_CONFIG_FILE}"
-    fi
-    break
+  writeConfigKey "cmdline.mac1"           "${MAC1}" "${USER_CONFIG_FILE}"
+  if [ "${NETNUM}" -gt 1 ]; then
+    writeConfigKey "cmdline.mac2"           "${MAC2}" "${USER_CONFIG_FILE}"
+  fi
+  if [ "${NETNUM}" -gt 2 ]; then
+    writeConfigKey "cmdline.mac3"           "${MAC3}" "${USER_CONFIG_FILE}"
+  fi
+  if [ "${NETNUM}" -gt 3 ]; then
+    writeConfigKey "cmdline.mac4"           "${MAC4}" "${USER_CONFIG_FILE}"
   fi
   dialog --backtitle "`backtitle`" \
-    --title "Arc Network" --infobox "Set MAC for first NIC" 0 0
+    --title "Arc Network" --infobox "Set MAC for all NIC" 0 0
   sleep 2
   # Only load getmap when Sata Controller are dedected
   if [ "${SATACONTROLLER}" -gt 0 ]; then
@@ -185,11 +185,11 @@ function arcnetdisk() {
     # Show Map to User
     if [ "${REMAP}" == "0" ]; then
       dialog --backtitle "`backtitle`" --title "Arc Disks" \
-        --msgbox "SataPortMap: ${SATAPORTMAP} DiskIdxMap: ${DISKIDXMAP}" 0 0
+        --infobox "SataPortMap: ${SATAPORTMAP} DiskIdxMap: ${DISKIDXMAP}" 0 0
     fi
     if [ "${REMAP}" == "1" ]; then
       dialog --backtitle "`backtitle`" --title "Arc Disks" \
-        --msgbox "Sata_Remap: ${SATAREMAP}" 0 0
+        --infobox "Sata_Remap: ${SATAREMAP}" 0 0
     fi
   fi
   # Config is done
