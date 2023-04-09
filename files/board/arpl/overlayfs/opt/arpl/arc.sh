@@ -45,6 +45,7 @@ DIRECTBOOT="`readConfigKey "directboot" "${USER_CONFIG_FILE}"`"
 SN="`readConfigKey "sn" "${USER_CONFIG_FILE}"`"
 CONFDONE="`readConfigKey "confdone" "${USER_CONFIG_FILE}"`"
 BUILDDONE="`readConfigKey "builddone" "${USER_CONFIG_FILE}"`"
+DT="`readModelKey "${MODEL}" "dt"`"
 
 ###############################################################################
 # Mounts backtitle dynamically
@@ -100,10 +101,6 @@ function arcbuild() {
   writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
   PLATFORM="`readModelKey "${MODEL}" "platform"`"
   BUILD="`readConfigKey "build" "${USER_CONFIG_FILE}"`"
-  # If Build isn't set - use latest
-  if [ "$BUILD" != "$BUILDNUMBER" ]; then
-  BUILD=${BUILDNUMBER}
-  fi
   KVER="`readModelKey "${MODEL}" "builds.${BUILD}.kver"`"
   DT="`readModelKey "${MODEL}" "dt"`"
   ARCPATCH=1
@@ -149,6 +146,7 @@ function arcbuild() {
 # Make Network and Disk Config
 function arcnetdisk() {
   MODEL="`readConfigKey "model" "${USER_CONFIG_FILE}"`"
+  DT="`readModelKey "${MODEL}" "dt"`"
   # Delete old Mac Address from Userconfig
   #deleteConfigKey "cmdline.mac1" "${USER_CONFIG_FILE}"
   deleteConfigKey "cmdline.mac2" "${USER_CONFIG_FILE}"
@@ -174,23 +172,39 @@ function arcnetdisk() {
   dialog --backtitle "`backtitle`" \
     --title "Arc Network" --infobox "Set MAC for all NIC" 0 0
   sleep 2
-  # Only load getmap when Sata Controller are dedected
-  if [ "${SATACONTROLLER}" -gt 0 ]; then
-    # Storage Map automated
+  # Only load getmap when Sata Controller are dedected and no DT Model is selected
+  if [ "${SATACONTROLLER}" -gt 0 ] && [ "${DT}" != "true" ]; then
+  # Config for Sata Controller with PortMap to get all drives
+    dialog --backtitle "`backtitle`" --title "Arc Disks" \
+      --infobox "SATA Controller found. We have to use SataPortMap for Controller!" 0 0
     writeConfigKey "remap" "0" "${USER_CONFIG_FILE}"
-    sleep 2
-    # Get Diskmap for DSM
-    REMAP="`readConfigKey "remap" "${USER_CONFIG_FILE}"`"
+    sleep 3
+  elif [ "${SATACONTROLLER}" -eq 0 ] && [ "${DT}" != "true" ]; then
+      dialog --backtitle "`backtitle`" --title "Arc Disks" \
+        --infobox "No SATA Controller found. We can use SasIdxMap for Controller!" 0 0
+      writeConfigKey "remap" "0" "${USER_CONFIG_FILE}"
+      sleep 3
+  elif [ "${DT}" = "true" ]; then
+      dialog --backtitle "`backtitle`" --title "Arc Disks" \
+        --infobox "Device Tree Model selected." 0 0
+      writeConfigKey "remap" "3" "${USER_CONFIG_FILE}"
+      sleep 3
+  fi
+  # Get Diskmap for DSM
+  REMAP="`readConfigKey "remap" "${USER_CONFIG_FILE}"`"
+  if [ -n "${REMAP}" ]; then
     getmap
-    # Show Map to User
-    if [ "${REMAP}" == "0" ]; then
-      dialog --backtitle "`backtitle`" --title "Arc Disks" \
-        --infobox "SataPortMap: ${SATAPORTMAP} DiskIdxMap: ${DISKIDXMAP}" 0 0
-    fi
-    if [ "${REMAP}" == "1" ]; then
-      dialog --backtitle "`backtitle`" --title "Arc Disks" \
-        --infobox "Sata_Remap: ${SATAREMAP}" 0 0
-    fi
+  fi
+  # Show Map to User
+  if [ "${REMAP}" == "0" ] && [ "${SATAPORTMAP}" -gt 10 ]; then
+    dialog --backtitle "`backtitle`" --title "Arc Disks" \
+      --msgbox "SataPortMap: ${SATAPORTMAP} DiskIdxMap: ${DISKIDXMAP}" 0 0
+  elif [ "${REMAP}" == "0" ] && [ "$HYPERVISOR" = "VMware" ]; then
+    dialog --backtitle "`backtitle`" --title "Arc Disks" \
+      --msgbox "SataPortMap: ${SATAPORTMAP} DiskIdxMap: ${DISKIDXMAP}" 0 0
+  elif [ "${REMAP}" == "3" ]; then
+    dialog --backtitle "`backtitle`" --title "Arc Disks" \
+      --msgbox "Device Tree Model selected - We don't need this." 0 0
   fi
   # Config is done
   writeConfigKey "confdone" "1" "${USER_CONFIG_FILE}"
