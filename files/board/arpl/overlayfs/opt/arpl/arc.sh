@@ -101,6 +101,10 @@ function arcbuild() {
   writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
   PLATFORM="`readModelKey "${MODEL}" "platform"`"
   BUILD="`readConfigKey "build" "${USER_CONFIG_FILE}"`"
+  # If Build isn't set - use latest
+  if [ "$BUILD" != "$BUILDNUMBER" ]; then
+  BUILD=${BUILDNUMBER}
+  fi
   KVER="`readModelKey "${MODEL}" "builds.${BUILD}.kver"`"
   DT="`readModelKey "${MODEL}" "dt"`"
   ARCPATCH=1
