@@ -80,16 +80,20 @@ function backtitle() {
 # Shows menu to user type one or generate randomly
 function arcbuild() {
   # Select Model for DSM
-  MODEL="DS3622xs+"
+  if [ -z "${MODEL}" ]; then
+    MODEL="DS3622xs+"
+  fi
   writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
   deleteConfigKey "arc.confdone" "${USER_CONFIG_FILE}"
   deleteConfigKey "arc.builddone" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.remap" "" "${USER_CONFIG_FILE}"
+  #writeConfigKey "arc.remap" "" "${USER_CONFIG_FILE}"
   # Delete old files
   rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
   DIRTY=1
   # Select Build for DSM
-  BUILD="42962"
+  if [ -z "${BUILD}" ]; then
+    BUILD="42962"
+  fi
   writeConfigKey "build" "${BUILD}" "${USER_CONFIG_FILE}"
   # Read model values for buildconfig
   PLATFORM="`readModelKey "${MODEL}" "platform"`"
@@ -236,11 +240,11 @@ function arcnetdisk() {
     SATAREMAP=`awk '{print $1}' "${TMP_PATH}/remap" | sed 's/.$//'`
     # Check Remap for correct config
     REMAP="`readConfigKey "arc.remap" "${USER_CONFIG_FILE}"`"
-    if [ -n ${REMAP} ]; then
-      if [ -n ${SATAREMAP} ]; then
-        REMAP=2
-      else
+    if [ -z ${REMAP} ]; then
+      if [ -n ${SATAREMAP} ] && [ "${SASCONTROLLER}" -eq 0 ]; then
         REMAP=3
+      else
+        REMAP=1
       fi
     fi
     # Write Map to config and show Map to User
