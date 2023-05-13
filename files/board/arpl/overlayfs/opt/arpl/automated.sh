@@ -240,8 +240,8 @@ function arcnetdisk() {
     SATAREMAP=`awk '{print $1}' "${TMP_PATH}/remap" | sed 's/.$//'`
     # Check Remap for correct config
     REMAP="`readConfigKey "arc.remap" "${USER_CONFIG_FILE}"`"
-    if [ -z ${REMAP} ]; then
-      if [ -n ${SATAREMAP} ] && [ "${SASCONTROLLER}" -eq 0 ]; then
+    if [ -z "${REMAP}" ]; then
+      if [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -eq 0 ]; then
         REMAP=3
       else
         REMAP=1
