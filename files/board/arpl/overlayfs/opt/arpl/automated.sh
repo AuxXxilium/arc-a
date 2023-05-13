@@ -148,10 +148,10 @@ function arcnetdisk() {
   deleteConfigKey "cmdline.mac2" "${USER_CONFIG_FILE}"
   deleteConfigKey "cmdline.mac3" "${USER_CONFIG_FILE}"
   deleteConfigKey "cmdline.mac4" "${USER_CONFIG_FILE}"
-  MAC1="`readModelKey "${MODEL}" "mac1"`"
-  MAC2="`readModelKey "${MODEL}" "mac2"`"
-  MAC3="`readModelKey "${MODEL}" "mac3"`"
-  MAC4="`readModelKey "${MODEL}" "mac4"`"
+  MAC1="`readModelKey "${MODEL}" "arc.mac1"`"
+  MAC2="`readModelKey "${MODEL}" "arc.mac2"`"
+  MAC3="`readModelKey "${MODEL}" "arc.mac3"`"
+  MAC4="`readModelKey "${MODEL}" "arc.mac4"`"
   dialog --backtitle "`backtitle`" \
     --title "Arc Network" --infobox " ${NETNUM} Adapter dedected" 0 0
   # Install with Arc Patch - Check for model config and set custom Mac Address
