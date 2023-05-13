@@ -186,8 +186,11 @@ if ! loaderIsConfigured; then
   echo -e "\033[1;33mLoader is not configured!\033[0m"
   BOOT=0
 elif grep -q "IWANTTOCHANGETHECONFIG" /proc/cmdline; then
-  echo -e "\033[1;33mUser requested edit settings.\033[0m"
+  echo -e "\033[1;33mAutomated configure requested.\033[0m"
   BOOT=0
+elif grep -q "USERWANTTOCHANGETHECONFIG" /proc/cmdline; then
+  echo -e "\033[1;33mUser requested edit settings.\033[0m"
+  BOOT=2
 fi
 
 # If is to boot automatically, do it
@@ -225,4 +228,8 @@ mkdir -p "${LKM_PATH}"
 mkdir -p "${MODULES_PATH}"
 
 install-addons.sh
+if [ ${BOOT} -eq 2 ]; then 
 arc.sh
+elif [ ${BOOT} -eq 0 ]; then
+automated.sh
+fi

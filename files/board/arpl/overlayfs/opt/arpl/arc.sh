@@ -1264,7 +1264,7 @@ function updateMenu() {
         dialog --backtitle "`backtitle`" --title "Update Arc" --aspect 18 \
           --infobox "Checking latest version" 0 0
         ACTUALVERSION="v${ARPL_VERSION}"
-        TAG="`curl --insecure -s https://api.github.com/repos/AuxXxilium/arc/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}'`"
+        TAG="`curl --insecure -s https://api.github.com/repos/AuxXxilium/arc-automated/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}'`"
         if [ $? -ne 0 -o -z "${TAG}" ]; then
           dialog --backtitle "`backtitle`" --title "Update Arc" --aspect 18 \
             --msgbox "Error checking new version" 0 0
@@ -1279,7 +1279,7 @@ function updateMenu() {
           --infobox "Downloading latest version ${TAG}" 0 0
         # Download update file
         STATUS=`curl --insecure -w "%{http_code}" -L \
-          "https://github.com/AuxXxilium/arc/releases/download/${TAG}/update.zip" -o /tmp/update.zip`
+          "https://github.com/AuxXxilium/arc-automated/releases/download/${TAG}/update.zip" -o /tmp/update.zip`
         if [ $? -ne 0 -o ${STATUS} -ne 200 ]; then
           dialog --backtitle "`backtitle`" --title "Update Arc" --aspect 18 \
             --msgbox "Error downloading update file" 0 0
@@ -1416,7 +1416,7 @@ function updateMenu() {
         dialog --backtitle "`backtitle`" --title "Full upgrade Loader" --aspect 18 \
           --infobox "Checking latest version" 0 0
         ACTUALVERSION="v${ARPL_VERSION}"
-        TAG="`curl --insecure -s https://api.github.com/repos/AuxXxilium/arc/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}'`"
+        TAG="`curl --insecure -s https://api.github.com/repos/AuxXxilium/arc-automated/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}'`"
         if [ $? -ne 0 -o -z "${TAG}" ]; then
           dialog --backtitle "`backtitle`" --title "Full upgrade Loader" --aspect 18 \
             --msgbox "Error checking new version" 0 0
@@ -1431,7 +1431,7 @@ function updateMenu() {
           --infobox "Downloading latest version ${TAG}" 0 0
         # Download update file
         STATUS=`curl --insecure -w "%{http_code}" -L \
-          "https://github.com/AuxXxilium/arc/releases/download/${TAG}/arc-${TAG}.img.zip" -o /tmp/arc-${TAG}.img.zip`
+          "https://github.com/AuxXxilium/arc-automated/releases/download/${TAG}/arc-${TAG}.img.zip" -o /tmp/arc-${TAG}.img.zip`
         if [ $? -ne 0 -o ${STATUS} -ne 200 ]; then
           dialog --backtitle "`backtitle`" --title "Full upgrade Loader" --aspect 18 \
             --msgbox "Error downloading update file" 0 0
