@@ -80,7 +80,7 @@ function backtitle() {
 # Shows menu to user type one or generate randomly
 function arcbuild() {
   # Select Model for DSM
-  MODEL="RS4021xs+"
+  MODEL="DS3622xs+"
   writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
   deleteConfigKey "arc.confdone" "${USER_CONFIG_FILE}"
   deleteConfigKey "arc.builddone" "${USER_CONFIG_FILE}"
