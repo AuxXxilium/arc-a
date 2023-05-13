@@ -241,11 +241,24 @@ function arcnetdisk() {
     # Check Remap for correct config
     REMAP="`readConfigKey "arc.remap" "${USER_CONFIG_FILE}"`"
     if [ -z "${REMAP}" ]; then
-      if [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -eq 0 ]; then
-        REMAP=3
-      else
-        REMAP=1
-      fi
+        # Use recommended Option
+        if [ "$MACHINE" != "VIRTUAL" ]; then
+          if [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -eq 0 ]; then
+            REMAP=3
+          elif [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -gt 0 ]; then
+            REMAP=2
+          elif [ -z "${SATAREMAP}" ]; then
+            REMAP=1
+          fi
+        elif [ "$MACHINE" = "VIRTUAL" ]; then
+          if [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -eq 0 ]; then
+            REMAP=3
+          elif [ -n "${SATAREMAP}" ] && [ "${SASCONTROLLER}" -gt 0 ]; then
+            REMAP=1
+          elif [ -z "${SATAREMAP}" ]; then
+            REMAP=1
+          fi
+        fi
     fi
     # Write Map to config and show Map to User
     if [ "${REMAP}" == "1" ]; then
