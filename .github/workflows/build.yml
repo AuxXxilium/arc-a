@@ -198,12 +198,12 @@ jobs:
       - name: Pack
         run: |
           if [ -n "${{ env.VERSION }}" ]; then
-            zip -9 "arc-${{ env.VERSION }}.img.zip" arc.img
-            zip -9 "arc_4GB-${{ env.VERSION }}.img.zip" arc_4GB.img
-            zip -9 "arc-${{ env.VERSION }}.vmdk-dyn.zip" arc-dyn.vmdk
-            zip -9 "arc_4GB-${{ env.VERSION }}.vmdk-dyn.zip" arc_4GB-dyn.vmdk
-            zip -9 "arc-${{ env.VERSION }}.vmdk-flat.zip" arc.vmdk arc-flat.vmdk
-            zip -9 "arc_4GB-${{ env.VERSION }}.vmdk-flat.zip" arc_4GB.vmdk arc-flat.vmdk
+            zip -9 "arc-a-${{ env.VERSION }}.img.zip" arc.img
+            zip -9 "arc-a_4GB-${{ env.VERSION }}.img.zip" arc_4GB.img
+            zip -9 "arc-a-${{ env.VERSION }}.vmdk-dyn.zip" arc-dyn.vmdk
+            zip -9 "arc-a_4GB-${{ env.VERSION }}.vmdk-dyn.zip" arc_4GB-dyn.vmdk
+            zip -9 "arc-a-${{ env.VERSION }}.vmdk-flat.zip" arc.vmdk arc-flat.vmdk
+            zip -9 "arc-a_4GB-${{ env.VERSION }}.vmdk-flat.zip" arc_4GB.vmdk arc-flat.vmdk
           else
             zip -9 "arc.img.zip" arc.img
             zip -9 "arc_4GB.img.zip" arc_4GB.img
@@ -238,10 +238,10 @@ jobs:
             LKM: ${{ env.LKMTAG }}
             ${{ steps.Changelog.outputs.changelog }}
           files: |
-            arc-${{ env.VERSION }}.img.zip
-            arc_4GB-${{ env.VERSION }}.img.zip
-            arc-${{ env.VERSION }}.vmdk-dyn.zip
-            arc_4GB-${{ env.VERSION }}.vmdk-dyn.zip
-            arc-${{ env.VERSION }}.vmdk-flat.zip
-            arc_4GB-${{ env.VERSION }}.vmdk-flat.zip
+            arc-a-${{ env.VERSION }}.img.zip
+            arc-a_4GB-${{ env.VERSION }}.img.zip
+            arc-a-${{ env.VERSION }}.vmdk-dyn.zip
+            arc-a_4GB-${{ env.VERSION }}.vmdk-dyn.zip
+            arc-a-${{ env.VERSION }}.vmdk-flat.zip
+            arc-a_4GB-${{ env.VERSION }}.vmdk-flat.zip
             update.zip
