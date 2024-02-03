@@ -107,30 +107,28 @@ function backtitle() {
 # Make Model Config
 function arcMenu() {
   # read model config for dt and aes
-  if [ "${MODEL}" != "${resp}" ]; then
-    MODEL="RS4021xs+"
-    DT="$(readModelKey "${MODEL}" "dt")"
-    PRODUCTVER=""
-    writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
-    writeConfigKey "productver" "" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.confdone" "false" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.remap" "" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.paturl" "" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.pathash" "" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.sn" "" "${USER_CONFIG_FILE}"
-    writeConfigKey "arc.mac1" "" "${USER_CONFIG_FILE}"
-    if [ "${DT}" = "true" ]; then
-      deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
-      deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
-      deleteConfigKey "cmdline.sata_remap" "${USER_CONFIG_FILE}"
-    fi
-    CONFDONE="$(readConfigKey "arc.confdone" "${USER_CONFIG_FILE}")"
-    BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-    if [[ -f "${ORI_ZIMAGE_FILE}" || -f "${ORI_RDGZ_FILE}" || -f "${MOD_ZIMAGE_FILE}" || -f "${MOD_RDGZ_FILE}" ]]; then
-      # Delete old files
-      rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
-    fi
+  MODEL="RS4021xs+"
+  DT="$(readModelKey "${MODEL}" "dt")"
+  PRODUCTVER=""
+  writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
+  writeConfigKey "productver" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.confdone" "false" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.remap" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.paturl" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.pathash" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.sn" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.mac1" "" "${USER_CONFIG_FILE}"
+  if [ "${DT}" = "true" ]; then
+    deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
+    deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
+    deleteConfigKey "cmdline.sata_remap" "${USER_CONFIG_FILE}"
+  fi
+  CONFDONE="$(readConfigKey "arc.confdone" "${USER_CONFIG_FILE}")"
+  BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
+  if [[ -f "${ORI_ZIMAGE_FILE}" || -f "${ORI_RDGZ_FILE}" || -f "${MOD_ZIMAGE_FILE}" || -f "${MOD_RDGZ_FILE}" ]]; then
+    # Delete old files
+    rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
   fi
   arcbuild
 }
@@ -246,25 +244,27 @@ function make() {
     deleteConfigKey "modules.mmc_block" "${USER_CONFIG_FILE}"
     deleteConfigKey "modules.mmc_core" "${USER_CONFIG_FILE}"
   fi
-  # Check for offline Mode
-  if [ "${OFFLINE}" = "true" ]; then
-    offlinemake
-    return
-  else
-    # Update PAT Data
-    PAT_URL_CONF="$(readConfigKey "arc.paturl" "${USER_CONFIG_FILE}")"
-    PAT_HASH_CONF="$(readConfigKey "arc.pathash" "${USER_CONFIG_FILE}")"
-    if [[ -z "${PAT_URL_CONF}" || -z "${PAT_HASH_CONF}" ]]; then
-      PAT_URL_CONF="0"
-      PAT_HASH_CONF="0"
-    fi
-    while true; do
+  while true; do
+    dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+      --infobox "Get PAT Data from Syno..." 3 30
+    idx=0
+    while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
+      PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
+      PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+      PAT_URL=${PAT_URL%%\?*}
+      if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
+        break
+      fi
+      sleep 3
+      idx=$((${idx} + 1))
+    done
+    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
       dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-        --infobox "Get PAT Data from Syno..." 3 30
+        --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
       idx=0
       while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-        PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
-        PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+        PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
+        PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
         PAT_URL=${PAT_URL%%\?*}
         if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
           break
@@ -272,97 +272,77 @@ function make() {
         sleep 3
         idx=$((${idx} + 1))
       done
-      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-        dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-          --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
-        idx=0
-        while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-          PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
-          PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
-          PAT_URL=${PAT_URL%%\?*}
-          if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
-            break
-          fi
-          sleep 3
-          idx=$((${idx} + 1))
-        done
-      fi
-    done
-    if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
-      writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
-      # Check for existing Files
-      DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
-      # Get new Files
-      DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL}/${PRODUCTVER}/${PAT_HASH}.tar"
-      STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
-      if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
-        dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-        --msgbox "No DSM Image found!\nTry Syno Link." 0 0
-        # Grep PAT_URL
-        PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
-        STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
-        if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
-          dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-            --msgbox "No DSM Image found!\ Exit." 0 0
-          return 1
-        fi
-        # Extract Files
-        header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
-        case ${header} in
-            105)
-            isencrypted="no"
-            ;;
-            213)
-            isencrypted="no"
-            ;;
-            255)
-            isencrypted="yes"
-            ;;
-            *)
-            echo -e "Could not determine if pat file is encrypted or not, maybe corrupted, try again!"
-            ;;
-        esac
-        if [ "${isencrypted}" = "yes" ]; then
-          # Uses the extractor to untar PAT file
-          LD_LIBRARY_PATH="${EXTRACTOR_PATH}" "${EXTRACTOR_PATH}/${EXTRACTOR_BIN}" "${PAT_FILE}" "${UNTAR_PAT_PATH}"
-        else
-          # Untar PAT file
-          tar xf "${PAT_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
-        fi
-        # Cleanup PAT Download
-        rm -f "${PAT_FILE}"
-      elif [ -f "${DSM_FILE}" ]; then
-        tar xf "${DSM_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
-      elif [ ! -f "${UNTAR_PAT_PATH}/zImage" ]; then
-        dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-          --msgbox "ERROR: No DSM Image found!" 0 0
-        return 1
-      fi
-      # Copy DSM Files to Locations if DSM Files not found
-      cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART1_PATH}"
-      cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART1_PATH}"
-      cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART2_PATH}"
-      cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART2_PATH}"
-      cp -f "${UNTAR_PAT_PATH}/zImage" "${ORI_ZIMAGE_FILE}"
-      cp -f "${UNTAR_PAT_PATH}/rd.gz" "${ORI_RDGZ_FILE}"
-      rm -rf "${UNTAR_PAT_PATH}"
     fi
-    # Reset Bootcount if User rebuild DSM
-    if [[ -z "${BOOTCOUNT}" || ${BOOTCOUNT} -gt 0 ]]; then
-      writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
+    break
+  done
+  writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
+  # Check for existing Files
+  DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
+  # Get new Files
+  DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL}/${PRODUCTVER}/${PAT_HASH}.tar"
+  STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
+  if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+    dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+    --msgbox "No DSM Image found!\nTry Syno Link." 0 0
+    # Grep PAT_URL
+    PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
+    STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
+    if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+      dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+        --msgbox "No DSM Image found!\ Exit." 0 0
+      return 1
     fi
-    (
-      livepatch
-      sleep 3
-    ) 2>&1 | dialog --backtitle "$(backtitle)" --colors --title "Build Loader" \
-      --progressbox "Doing the Magic..." 20 70
-    if [[ -f "${ORI_ZIMAGE_FILE}" && -f "${ORI_RDGZ_FILE}" && -f "${MOD_ZIMAGE_FILE}" && -f "${MOD_RDGZ_FILE}" ]]; then
-      # Build is done
-      writeConfigKey "arc.builddone" "true" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      boot && exit 0
+    # Extract Files
+    header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
+    case ${header} in
+        105)
+        isencrypted="no"
+        ;;
+        213)
+        isencrypted="no"
+        ;;
+        255)
+        isencrypted="yes"
+        ;;
+        *)
+        echo -e "Could not determine if pat file is encrypted or not, maybe corrupted, try again!"
+        ;;
+    esac
+    if [ "${isencrypted}" = "yes" ]; then
+      # Uses the extractor to untar PAT file
+      LD_LIBRARY_PATH="${EXTRACTOR_PATH}" "${EXTRACTOR_PATH}/${EXTRACTOR_BIN}" "${PAT_FILE}" "${UNTAR_PAT_PATH}"
+    else
+      # Untar PAT file
+      tar xf "${PAT_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
     fi
+    # Cleanup PAT Download
+    rm -f "${PAT_FILE}"
+  elif [ -f "${DSM_FILE}" ]; then
+    tar xf "${DSM_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
+  fi
+  # Copy DSM Files to Locations if DSM Files not found
+  cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART1_PATH}"
+  cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART1_PATH}"
+  cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART2_PATH}"
+  cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART2_PATH}"
+  cp -f "${UNTAR_PAT_PATH}/zImage" "${ORI_ZIMAGE_FILE}"
+  cp -f "${UNTAR_PAT_PATH}/rd.gz" "${ORI_RDGZ_FILE}"
+  rm -rf "${UNTAR_PAT_PATH}"
+  # Reset Bootcount if User rebuild DSM
+  if [[ -z "${BOOTCOUNT}" || ${BOOTCOUNT} -gt 0 ]]; then
+    writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
+  fi
+  (
+    livepatch
+    sleep 3
+  ) 2>&1 | dialog --backtitle "$(backtitle)" --colors --title "Build Loader" \
+    --progressbox "Doing the Magic..." 20 70
+  if [[ -f "${ORI_ZIMAGE_FILE}" && -f "${ORI_RDGZ_FILE}" && -f "${MOD_ZIMAGE_FILE}" && -f "${MOD_RDGZ_FILE}" ]]; then
+    # Build is done
+    writeConfigKey "arc.builddone" "true" "${USER_CONFIG_FILE}"
+    BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
+    boot && exit 0
   fi
 }
 
@@ -2588,8 +2568,7 @@ function boot() {
 ###############################################################################
 ###############################################################################
 # Main loop
-arcmenu
-clear
+arcMenu
 
 # Inform user
 echo -e "Call \033[1;34marc.sh\033[0m to configure loader"
