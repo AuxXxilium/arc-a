@@ -180,6 +180,11 @@ function arcsettings() {
   writeConfigKey "addons.diskdbpatch" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.multismb3" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.powersched" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.storagepanel" "" "${USER_CONFIG_FILE}"
+  # Check for ACPI Support
+  if ! grep -q "^flags.*acpi.*" /proc/cpuinfo; then
+    deleteConfigKey "addons.acpid" "${USER_CONFIG_FILE}"
+  fi
   writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   # Get Network Config for Loader
