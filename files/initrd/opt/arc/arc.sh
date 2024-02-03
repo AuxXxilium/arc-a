@@ -106,84 +106,10 @@ function backtitle() {
 ###############################################################################
 # Make Model Config
 function arcMenu() {
-  # Loop menu
-  RESTRICT=1
-  FLGBETA=0
-  dialog --backtitle "$(backtitle)" --title "Model" --aspect 18 \
-    --infobox "Reading Models" 3 20
-    echo -n "" >"${TMP_PATH}/modellist"
-    while read -r M; do
-      Y="$(readModelKey "${M}" "disks")"
-      echo "${M} ${Y}" >>"${TMP_PATH}/modellist"
-    done < <(find "${MODEL_CONFIG_PATH}" -maxdepth 1 -name \*.yml | sed 's/.*\///; s/\.yml//')
-
-    while true; do
-      echo -n "" >"${TMP_PATH}/menu"
-      FLGNEX=0
-      while read -r M Y; do
-        PLATFORM=$(readModelKey "${M}" "platform")
-        DT="$(readModelKey "${M}" "dt")"
-        BETA="$(readModelKey "${M}" "beta")"
-        [[ "${BETA}" = "true" && ${FLGBETA} -eq 0 ]] && continue
-        DISKS="$(readModelKey "${M}" "disks")-Bay"
-        ARCCONF="$(readModelKey "${M}" "arc.serial")"
-        if [ -n "${ARCCONF}" ]; then
-          ARCAV="Arc"
-        else
-          ARCAV="NonArc"
-        fi
-        if [[ "${PLATFORM}" = "r1000" || "${PLATFORM}" = "v1000" || "${PLATFORM}" = "epyc7002" ]]; then
-          CPU="AMD"
-        else
-          CPU="Intel"
-        fi
-        # Check id model is compatible with CPU
-        COMPATIBLE=1
-        if [ ${RESTRICT} -eq 1 ]; then
-          for F in "$(readModelArray "${M}" "flags")"; do
-            if ! grep -q "^flags.*${F}.*" /proc/cpuinfo; then
-              COMPATIBLE=0
-              FLGNEX=1
-              break
-            fi
-          done
-          for F in "$(readModelArray "${M}" "dt")"; do
-            if [ "${DT}" = "true" ] && [[ ${SASCONTROLLER} -gt 0 || ${SCSICONTROLLER} -gt 0 ]]; then
-              COMPATIBLE=0
-              FLGNEX=1
-              break
-            fi
-          done
-        fi
-        [ "${DT}" = "true" ] && DTO="DT" || DTO=""
-        [ "${BETA}" = "true" ] && BETA="Beta" || BETA=""
-        [ ${COMPATIBLE} -eq 1 ] && echo "${M} \"$(printf "\Zb%-7s\Zn \Zb%-6s\Zn \Zb%-13s\Zn \Zb%-3s\Zn \Zb%-7s\Zn \Zb%-4s\Zn" "${DISKS}" "${CPU}" "${PLATFORM}" "${DTO}" "${ARCAV}" "${BETA}")\" ">>"${TMP_PATH}/menu"
-      done < <(cat "${TMP_PATH}/modellist" | sort -n -k 2)
-    [ ${FLGBETA} -eq 0 ] && echo "b \"\Z1Show beta Models\Zn\"" >>"${TMP_PATH}/menu"
-    [ ${FLGNEX} -eq 1 ] && echo "f \"\Z1Show incompatible Models \Zn\"" >>"${TMP_PATH}/menu"
-    dialog --backtitle "$(backtitle)" --colors --menu "Choose Model for Loader" 0 62 0 \
-      --file "${TMP_PATH}/menu" 2>"${TMP_PATH}/resp"
-    [ $? -ne 0 ] && return 1
-    resp="$(<"${TMP_PATH}/resp")"
-    [ -z "${resp}" ] && return 1
-    if [ "${resp}" = "b" ]; then
-      FLGBETA=1
-      continue
-    fi
-    if [ "${resp}" = "f" ]; then
-      RESTRICT=0
-      continue
-    fi
-    break
-  done
   # read model config for dt and aes
   if [ "${MODEL}" != "${resp}" ]; then
-    MODEL="${resp}"
+    MODEL="RS4021xs+"
     DT="$(readModelKey "${MODEL}" "dt")"
-    # Check for AES
-    if ! grep -q "^flags.*aes.*" /proc/cpuinfo; then
-      WARNON=4
-    fi
     PRODUCTVER=""
     writeConfigKey "model" "${MODEL}" "${USER_CONFIG_FILE}"
     writeConfigKey "productver" "" "${USER_CONFIG_FILE}"
@@ -215,27 +141,10 @@ function arcbuild() {
   # read model values for arcbuild
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   PLATFORM="$(readModelKey "${MODEL}" "platform")"
-  PRODUCTVER="$(readConfigKey "productver" "${USER_CONFIG_FILE}")"
-  if [ "${ARCRECOVERY}" != "true" ]; then
-    # Select Build for DSM
-    ITEMS="$(readConfigEntriesArray "productvers" "${MODEL_CONFIG_PATH}/${MODEL}.yml" | sort -r)"
-    if [ -z "${1}" ]; then
-      dialog --clear --no-items --nocancel --backtitle "$(backtitle)" \
-        --menu "Choose a Version" 0 0 0 ${ITEMS} 2>"${TMP_PATH}/resp"
-      resp="$(<"${TMP_PATH}/resp")"
-      [ -z "${resp}" ] && return 1
-    else
-      if ! arrayExistItem "${1}" ${ITEMS}; then return; fi
-      resp="${1}"
-    fi
-    if [ "${PRODUCTVER}" != "${resp}" ]; then
-      PRODUCTVER="${resp}"
-      writeConfigKey "productver" "${PRODUCTVER}" "${USER_CONFIG_FILE}"
-      if [[ -f "${ORI_ZIMAGE_FILE}" || -f "${ORI_RDGZ_FILE}" || -f "${MOD_ZIMAGE_FILE}" || -f "${MOD_RDGZ_FILE}" ]]; then
-        # Delete old files
-        rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
-      fi
-    fi
+  writeConfigKey "productver" "7.2" "${USER_CONFIG_FILE}"
+  if [[ -f "${ORI_ZIMAGE_FILE}" || -f "${ORI_RDGZ_FILE}" || -f "${MOD_ZIMAGE_FILE}" || -f "${MOD_RDGZ_FILE}" ]]; then
+    # Delete old files
+    rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
   fi
   PRODUCTVER="$(readConfigKey "productver" "${USER_CONFIG_FILE}")"
   KVER="$(readModelKey "${MODEL}" "productvers.[${PRODUCTVER}].kver")"
@@ -254,27 +163,7 @@ function arcbuild() {
   while read -r ID DESC; do
     writeConfigKey "modules.\"${ID}\"" "" "${USER_CONFIG_FILE}"
   done < <(getAllModules "${PLATFORM}" "${KVER}")
-  if [ "${ONLYVERSION}" != "true" ]; then
-    arcsettings
-  else
-    # Build isn't done
-    writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-    BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-    # Ask for Build
-    dialog --clear --backtitle "$(backtitle)" \
-      --menu "Build now?" 0 0 0 \
-      1 "Yes - Build Arc Loader now" \
-      2 "No - I want to make changes" \
-    2>"${TMP_PATH}/resp"
-    resp="$(<"${TMP_PATH}/resp")"
-    [ -z "${resp}" ] && return 1
-    if [ ${resp} -eq 1 ]; then
-      make
-    elif [ ${resp} -eq 2 ]; then
-      dialog --clear --no-items --backtitle "$(backtitle)"
-      return 1
-    fi
-  fi
+  arcsettings
 }
 
 ###############################################################################
@@ -284,129 +173,25 @@ function arcsettings() {
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   DT="$(readModelKey "${MODEL}" "dt")"
   ARCCONF="$(readConfigKey "arc.serial" "${MODEL_CONFIG_PATH}/${MODEL}.yml")"
-  if [ "${ARCRECOVERY}" = "true" ]; then
-    writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-  elif [[ "${ARCRECOVERY}" != "true" && -n "${ARCCONF}" ]]; then
-    dialog --clear --backtitle "$(backtitle)" \
-      --nocancel --title "Arc Patch"\
-      --menu "Do you want to use Syno Services?" 7 50 0 \
-      1 "Yes - Install with Arc Patch" \
-      2 "No - Install with random Serial/Mac" \
-      3 "No - Install with my Serial/Mac" \
-    2>"${TMP_PATH}/resp"
-    resp="$(<"${TMP_PATH}/resp")"
-    [ -z "${resp}" ] && return 1
-    if [ ${resp} -eq 1 ]; then
-      # Read Arc Patch from File
-      SN="$(readModelKey "${MODEL}" "arc.serial")"
-      writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
-      writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-      dialog --backtitle "$(backtitle)" --title "Arc Patch" \
-        --msgbox "WARN: You can connect your Syno Account.\nDo not try to register this Device for extended Warranty!" 0 0
-    elif [ ${resp} -eq 2 ]; then
-      # Generate random Serial
-      SN="$(generateSerial "${MODEL}")"
-      writeConfigKey "arc.patch" "random" "${USER_CONFIG_FILE}"
-      writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-    elif [ ${resp} -eq 3 ]; then
-      while true; do
-        dialog --backtitle "$(backtitle)" --colors --title "Serial" \
-          --inputbox "Please enter a valid Serial " 0 0 "" \
-          2>"${TMP_PATH}/resp"
-        [ $? -ne 0 ] && break 2
-        SN="$(cat ${TMP_PATH}/resp)"
-        if [ -z "${SN}" ]; then
-          return
-        elif [ $(validateSerial ${MODEL} ${SN}) -eq 1 ]; then
-          break
-        fi
-        # At present, the SN rules are not complete, and many SNs are not truly invalid, so not provide tips now.
-        break
-        dialog --backtitle "$(backtitle)" --colors --title "Serial" \
-          --yesno "Invalid Serial, continue?" 0 0
-        [ $? -eq 0 ] && break
-      done
-      writeConfigKey "arc.patch" "user" "${USER_CONFIG_FILE}"
-      writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-    fi
-    writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
-  elif [[ "${ARCRECOVERY}" != "true" && -z "${ARCCONF}" ]]; then
-    dialog --clear --backtitle "$(backtitle)" \
-      --nocancel --title "Non Arc Patch Model" \
-      --menu "Please select an Option?" 7 50 0 \
-      1 "Install with random Serial/Mac" \
-      2 "Install with my Serial/Mac" \
-    2>"${TMP_PATH}/resp"
-    resp="$(<"${TMP_PATH}/resp")"
-    [ -z "${resp}" ] && return 1
-    if [ ${resp} -eq 1 ]; then
-      # Generate random Serial
-      SN="$(generateSerial "${MODEL}")"
-      writeConfigKey "arc.patch" "random" "${USER_CONFIG_FILE}"
-      writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-    elif [ ${resp} -eq 2 ]; then
-      while true; do
-        dialog --backtitle "$(backtitle)" --colors --title "Serial" \
-          --inputbox "Please enter a serial number " 0 0 "" \
-          2>"${TMP_PATH}/resp"
-        [ $? -ne 0 ] && break 2
-        SN="$(cat ${TMP_PATH}/resp)"
-        if [ -z "${SN}" ]; then
-          return
-        elif [ $(validateSerial ${MODEL} ${SN}) -eq 1 ]; then
-          break
-        fi
-        # At present, the SN rules are not complete, and many SNs are not truly invalid, so not provide tips now.
-        break
-        dialog --backtitle "$(backtitle)" --colors --title "Serial" \
-          --yesno "Invalid Serial, continue?" 0 0
-        [ $? -eq 0 ] && break
-      done
-      writeConfigKey "arc.patch" "user" "${USER_CONFIG_FILE}"
-      writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
-    fi
-    writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
-  fi
+  # Read Arc Patch from File
+  SN="$(readModelKey "${MODEL}" "arc.serial")"
+  writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.hibernation" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.diskdbpatch" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.multismb3" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.powersched" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   # Get Network Config for Loader
   getnet
-  if [ "${ONLYPATCH}" = "true" ]; then
-    return 1
-  fi
   # Get Portmap for Loader
   getmap
-  # Check Warnings
-  if [ ${WARNON} -eq 1 ]; then
-    dialog --backtitle "$(backtitle)" --title "Arc Warning" \
-      --msgbox "WARN: Your Controller has more then 8 Disks connected. Max Disks per Controller: 8" 0 0
-  fi
-  if [ ${WARNON} -eq 3 ]; then
-    dialog --backtitle "$(backtitle)" --title "Arc Warning" \
-      --msgbox "WARN: You have more then 8 Ethernet Ports. There are only 8 supported by DSM." 0 0
-  fi
-  if [ ${WARNON} -eq 4 ]; then
-    dialog --backtitle "$(backtitle)" --title "Arc Warning" \
-      --msgbox "WARN: Your CPU does not have AES Support for Hardwareencryption in DSM." 0 0
-  fi
-  # Select Addons
-  addonSelection
   # Config is done
   writeConfigKey "arc.confdone" "true" "${USER_CONFIG_FILE}"
   CONFDONE="$(readConfigKey "arc.confdone" "${USER_CONFIG_FILE}")"
-  # Ask for Build
-  dialog --clear --backtitle "$(backtitle)" \
-    --menu "Config done -> Build now?" 0 0 0 \
-    1 "Yes - Build Arc Loader now" \
-    2 "No - I want to make changes" \
-  2>"${TMP_PATH}/resp"
-  resp="$(<"${TMP_PATH}/resp")"
-  [ -z "${resp}" ] && return 1
-  if [ ${resp} -eq 1 ]; then
-    make
-  elif [ ${resp} -eq 2 ]; then
-    dialog --clear --no-items --backtitle "$(backtitle)"
-    return 1
-  fi
+  make
 }
 
 ###############################################################################
@@ -414,27 +199,13 @@ function arcsettings() {
 function make() {
   # KVM check
   KVMSUPPORT="$(readConfigKey "arc.kvmsupport" "${USER_CONFIG_FILE}")"
-  if [ "${KVMSUPPORT}" = "true" ]; then
-    # Check if KVM is enabled
-    if ! grep -qE '^flags.*\b(vmx|svm)\b' /proc/cpuinfo; then
-      dialog --backtitle "$(backtitle)" --title "Arc Build" \
-        --extra-button --extra-label "Force Enable" --no-cancel \
-        --msgbox "Virtualization is disabled.\nPlease enable VMX or SVM in Bios.\nDisable KVM Support for now." 0 0
-      RET=$?
-      case ${RET} in
-      0) # ok-button
-        writeConfigKey "arc.kvmsupport" "false" "${USER_CONFIG_FILE}"
-        ;;
-      3) # extra-button
-        writeConfigKey "arc.kvmsupport" "true" "${USER_CONFIG_FILE}"
-        ;;
-      255) # ESC
-        writeConfigKey "arc.kvmsupport" "false" "${USER_CONFIG_FILE}"
-        ;;
-      esac
-      KVMSUPPORT="$(readConfigKey "arc.kvmsupport" "${USER_CONFIG_FILE}")"
-    fi
+  # Check if KVM is enabled
+  if ! grep -qE '^flags.*\b(vmx|svm)\b' /proc/cpuinfo; then
+    writeConfigKey "arc.kvmsupport" "false" "${USER_CONFIG_FILE}"
+  else
+    writeConfigKey "arc.kvmsupport" "true" "${USER_CONFIG_FILE}"
   fi
+  KVMSUPPORT="$(readConfigKey "arc.kvmsupport" "${USER_CONFIG_FILE}")"
   if [ "${KVMSUPPORT}" = "true" ]; then
     writeConfigKey "modules.kvm" "" "${USER_CONFIG_FILE}"
     writeConfigKey "modules.kvm-amd" "" "${USER_CONFIG_FILE}"
@@ -516,22 +287,7 @@ function make() {
           idx=$((${idx} + 1))
         done
       fi
-      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-        MSG="Failed to get PAT Data.\nPlease manually fill in the URL and Hash of PAT."
-        PAT_URL=""
-        PAT_HASH=""
-      else
-        MSG="Successfully got PAT Data.\nPlease confirm or modify as needed."
-      fi
-      dialog --backtitle "$(backtitle)" --colors --title "Arc Build" --default-button "OK" \
-        --form "${MSG}" 10 110 2 "URL" 1 1 "${PAT_URL}" 1 7 100 0 "HASH" 2 1 "${PAT_HASH}" 2 7 100 0 \
-        2>"${TMP_PATH}/resp"
-      RET=$?
-      [ ${RET} -eq 0 ] && break    # ok-button
-      return                       # 1 or 255  # cancel-button or ESC
     done
-    PAT_URL="$(cat "${TMP_PATH}/resp" | sed -n '1p')"
-    PAT_HASH="$(cat "${TMP_PATH}/resp" | sed -n '2p')"
     if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
       writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
       writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
@@ -605,24 +361,7 @@ function make() {
       # Build is done
       writeConfigKey "arc.builddone" "true" "${USER_CONFIG_FILE}"
       BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      # Ask for Boot
-      dialog --clear --backtitle "$(backtitle)" \
-        --menu "Build done -> Boot now?" 0 0 0 \
-        1 "Yes - Boot Arc Loader now" \
-        2 "No - I want to make changes" \
-      2>"${TMP_PATH}/resp"
-      resp="$(<"${TMP_PATH}/resp")"
-      [ -z "${resp}" ] && return 1
-      if [ ${resp} -eq 1 ]; then
-        boot && exit 0
-      elif [ ${resp} -eq 2 ]; then
-        dialog --clear --no-items --backtitle "$(backtitle)"
-        return 1
-      fi
-    else
-      dialog --backtitle "$(backtitle)" --title "Error" --aspect 18 \
-        --msgbox "Build failed!\nPlease check your Connection and Diskspace!" 0 0
-      return 1
+      boot && exit 0
     fi
   fi
 }
@@ -2849,236 +2588,7 @@ function boot() {
 ###############################################################################
 ###############################################################################
 # Main loop
-[ "${BUILDDONE}" = "true" ] && NEXT="3" || NEXT="1"
-while true; do
-  echo "= \"\Z4========== Main ==========\Zn \" "                                            >"${TMP_PATH}/menu"
-  echo "1 \"Choose Model \" "                                                               >>"${TMP_PATH}/menu"
-  if [ "${CONFDONE}" = "true" ]; then
-    echo "2 \"Build Loader \" "                                                             >>"${TMP_PATH}/menu"
-  fi
-  if [ "${BUILDDONE}" = "true" ]; then
-    echo "3 \"Boot Loader \" "                                                              >>"${TMP_PATH}/menu"
-  fi
-  echo "= \"\Z4========== Info ==========\Zn \" "                                           >>"${TMP_PATH}/menu"
-  echo "a \"Sysinfo \" "                                                                    >>"${TMP_PATH}/menu"
-  echo "= \"\Z4========= System =========\Zn \" "                                           >>"${TMP_PATH}/menu"
-  if [ "${CONFDONE}" = "true" ]; then
-    if [ "${ARCOPTS}" = "true" ]; then
-      echo "4 \"\Z1Hide Arc Options\Zn \" "                                                 >>"${TMP_PATH}/menu"
-    else
-      echo "4 \"\Z1Show Arc Options\Zn \" "                                                 >>"${TMP_PATH}/menu"
-    fi
-    if [ "${ARCOPTS}" = "true" ]; then
-      echo "= \"\Z4========== Arc ==========\Zn \" "                                        >>"${TMP_PATH}/menu"
-      echo "b \"Addons \" "                                                                 >>"${TMP_PATH}/menu"
-      echo "d \"Modules \" "                                                                >>"${TMP_PATH}/menu"
-      echo "e \"DSM Version \" "                                                            >>"${TMP_PATH}/menu"
-      echo "f \"Network Config \" "                                                         >>"${TMP_PATH}/menu"
-      if [ "${DT}" = "false" ]; then
-        echo "g \"Storage Map \" "                                                          >>"${TMP_PATH}/menu"
-        echo "h \"USB Mount Options \" "                                                    >>"${TMP_PATH}/menu"
-      fi
-      echo "p \"Arc Patch Settings \" "                                                     >>"${TMP_PATH}/menu"
-      if [ "${CONFDONE}" = "true" ]; then
-        echo "S \"Custom StoragePanel \" "                                                  >>"${TMP_PATH}/menu"
-      fi
-      echo "D \"DHCP/Static Loader IP \" "                                                  >>"${TMP_PATH}/menu"
-    fi
-    if [ "${ADVOPTS}" = "true" ]; then
-      echo "5 \"\Z1Hide Advanced Options\Zn \" "                                            >>"${TMP_PATH}/menu"
-    else
-      echo "5 \"\Z1Show Advanced Options\Zn \" "                                            >>"${TMP_PATH}/menu"
-    fi
-    if [ "${ADVOPTS}" = "true" ]; then
-      echo "= \"\Z4======== Advanced =======\Zn \" "                                        >>"${TMP_PATH}/menu"
-      echo "j \"Cmdline \" "                                                                >>"${TMP_PATH}/menu"
-      echo "k \"Synoinfo \" "                                                               >>"${TMP_PATH}/menu"
-      echo "l \"Edit User Config \" "                                                       >>"${TMP_PATH}/menu"
-    fi
-    if [ "${BOOTOPTS}" = "true" ]; then
-      echo "6 \"\Z1Hide Boot Options\Zn \" "                                                >>"${TMP_PATH}/menu"
-    else
-      echo "6 \"\Z1Show Boot Options\Zn \" "                                                >>"${TMP_PATH}/menu"
-    fi
-    if [ "${BOOTOPTS}" = "true" ]; then
-      echo "= \"\Z4========== Boot =========\Zn \" "                                        >>"${TMP_PATH}/menu"
-      echo "m \"DSM Kernelload: \Z4${KERNELLOAD}\Zn \" "                                    >>"${TMP_PATH}/menu"
-      if [ "${DIRECTBOOT}" = "false" ]; then
-        echo "i \"Boot IP Waittime: \Z4${BOOTIPWAIT}\Zn \" "                                >>"${TMP_PATH}/menu"
-      fi
-      echo "q \"Directboot: \Z4${DIRECTBOOT}\Zn \" "                                        >>"${TMP_PATH}/menu"
-      if [ ${BOOTCOUNT} -gt 0 ]; then
-        echo "r \"Reset Bootcount: \Z4${BOOTCOUNT}\Zn \" "                                  >>"${TMP_PATH}/menu"
-      fi
-    fi
-    if [ "${DSMOPTS}" = "true" ]; then
-      echo "7 \"\Z1Hide DSM Options\Zn \" "                                                 >>"${TMP_PATH}/menu"
-    else
-      echo "7 \"\Z1Show DSM Options\Zn \" "                                                 >>"${TMP_PATH}/menu"
-    fi
-    if [ "${DSMOPTS}" = "true" ]; then
-      echo "= \"\Z4========== DSM ==========\Zn \" "                                        >>"${TMP_PATH}/menu"
-      echo "s \"Allow DSM Downgrade \" "                                                    >>"${TMP_PATH}/menu"
-      echo "t \"Change DSM Password \" "                                                    >>"${TMP_PATH}/menu"
-      echo "O \"Official Driver Priority: \Z4${ODP}\Zn \" "                                 >>"${TMP_PATH}/menu"
-      echo "H \"Sort Drives: \Z4${HDDSORT}\Zn \" "                                          >>"${TMP_PATH}/menu"
-      echo "K \"KVM in DSM: \Z4${KVMSUPPORT}\Zn \" "                                        >>"${TMP_PATH}/menu"
-      echo "o \"Switch MacSys: \Z4${MACSYS}\Zn \" "                                         >>"${TMP_PATH}/menu"
-      echo "u \"Switch LKM version: \Z4${LKM}\Zn \" "                                       >>"${TMP_PATH}/menu"
-      echo "c \"Use IPv6: \Z4${ARCIPV6}\Zn \" "                                             >>"${TMP_PATH}/menu"
-    fi
-  fi
-  if [ "${DEVOPTS}" = "true" ]; then
-    echo "8 \"\Z1Hide Dev Options\Zn \" "                                                   >>"${TMP_PATH}/menu"
-  else
-    echo "8 \"\Z1Show Dev Options\Zn \" "                                                   >>"${TMP_PATH}/menu"
-  fi
-  if [ "${DEVOPTS}" = "true" ]; then
-    echo "= \"\Z4========== Dev ===========\Zn \" "                                         >>"${TMP_PATH}/menu"
-    echo "v \"Save Modifications to Disk \" "                                               >>"${TMP_PATH}/menu"
-    echo "n \"Edit Grub Config \" "                                                         >>"${TMP_PATH}/menu"
-    echo "w \"Reset Loader \" "                                                             >>"${TMP_PATH}/menu"
-    echo "J \"DSM force Reinstall \" "                                                      >>"${TMP_PATH}/menu"
-    echo "F \"\Z1Format Sata/NVMe Disk\Zn \" "                                              >>"${TMP_PATH}/menu"
-    echo "L \"Grep Logs from dbgutils \" "                                                  >>"${TMP_PATH}/menu"
-  fi
-  echo "= \"\Z4====== Misc Settings =====\Zn \" "                                           >>"${TMP_PATH}/menu"
-  echo "x \"Backup/Restore/Recovery \" "                                                    >>"${TMP_PATH}/menu"
-  echo "9 \"Offline Mode: \Z4${OFFLINE}\Zn \" "                                             >>"${TMP_PATH}/menu"
-  echo "y \"Choose a Keymap \" "                                                            >>"${TMP_PATH}/menu"
-  if [ "${OFFLINE}" = "false" ]; then
-    echo "z \"Update \" "                                                                   >>"${TMP_PATH}/menu"
-  fi
-  echo "0 \"Credits \" "                                                                    >>"${TMP_PATH}/menu"
-
-  dialog --clear --default-item ${NEXT} --backtitle "$(backtitle)" --colors \
-    --cancel-label "Exit" --title "Arc Menu" --menu "" 0 0 0 --file "${TMP_PATH}/menu" \
-    2>"${TMP_PATH}/resp"
-  [ $? -ne 0 ] && break
-  case $(<"${TMP_PATH}/resp") in
-    # Main Section
-    1) arcMenu; NEXT="2" ;;
-    2) make; NEXT="3" ;;
-    3) boot && exit 0 || sleep 3 ;;
-    # Info Section
-    a) sysinfo; NEXT="a" ;;
-    # System Section
-    # Arc Section
-    4) [ "${ARCOPTS}" = "true" ] && ARCOPTS='false' || ARCOPTS='true'
-       ARCOPTS="${ARCOPTS}"
-       NEXT="4"
-       ;;
-    b) addonMenu; NEXT="b" ;;
-    d) modulesMenu; NEXT="d" ;;
-    e) ONLYVERSION="true" && arcbuild; NEXT="e" ;;
-    f) networkMenu; NEXT="f" ;;
-    g) storageMenu; NEXT="g" ;;
-    p) ONLYPATCH="true" && arcsettings; NEXT="p" ;;
-    h) usbMenu; NEXT="h" ;;
-    S) storagepanelMenu; NEXT="S" ;;
-    D) staticIPMenu; NEXT="D" ;;
-    c) [ "${ARCIPV6}" = "true" ] && ARCIPV6='false' || ARCIPV6='true'
-      writeConfigKey "arc.ipv6" "${ARCIPV6}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="c"
-      ;;
-    # Advanced Section
-    5) [ "${ADVOPTS}" = "true" ] && ADVOPTS='false' || ADVOPTS='true'
-       ADVOPTS="${ADVOPTS}"
-       NEXT="5"
-       ;;
-    j) cmdlineMenu; NEXT="j" ;;
-    k) synoinfoMenu; NEXT="k" ;;
-    l) editUserConfig; NEXT="l" ;;
-    # Boot Section
-    6) [ "${BOOTOPTS}" = "true" ] && BOOTOPTS='false' || BOOTOPTS='true'
-       ARCOPTS="${BOOTOPTS}"
-       NEXT="6"
-       ;;
-    m) [ "${KERNELLOAD}" = "kexec" ] && KERNELLOAD='power' || KERNELLOAD='kexec'
-      writeConfigKey "arc.kernelload" "${KERNELLOAD}" "${USER_CONFIG_FILE}"
-      NEXT="m"
-      ;;
-    i) bootipwaittime; NEXT="i" ;;
-    q) [ "${DIRECTBOOT}" = "false" ] && DIRECTBOOT='true' || DIRECTBOOT='false'
-      grub-editenv "${GRUB_PATH}/grubenv" create
-      writeConfigKey "arc.directboot" "${DIRECTBOOT}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
-      BOOTCOUNT="$(readConfigKey "arc.bootcount" "${USER_CONFIG_FILE}")"
-      NEXT="q"
-      ;;
-    r)
-      grub-editenv "${GRUB_PATH}/grubenv" create
-      writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
-      BOOTCOUNT="$(readConfigKey "arc.bootcount" "${USER_CONFIG_FILE}")"
-      NEXT="r"
-      ;;
-    # DSM Section
-    7) [ "${DSMOPTS}" = "true" ] && DSMOPTS='false' || DSMOPTS='true'
-      DSMOPTS="${DSMOPTS}"
-      NEXT="7"
-      ;;
-    s) downgradeMenu; NEXT="s" ;;
-    t) resetPassword; NEXT="t" ;;
-    O)
-      [ "${ODP}" = "false" ] && ODP='true' || ODP='false'
-      writeConfigKey "arc.odp" "${ODP}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="O"
-      ;;
-    H)
-      [ "${HDDSORT}" = "true" ] && HDDSORT='false' || HDDSORT='true'
-      writeConfigKey "arc.hddsort" "${HDDSORT}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="H"
-      ;;
-    K)
-      [ "${KVMSUPPORT}" = "true" ] && KVMSUPPORT='false' || KVMSUPPORT='true'
-      writeConfigKey "arc.kvmsupport" "${KVMSUPPORT}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="K"
-      ;;
-    o) [ "${MACSYS}" = "hardware" ] && MACSYS='custom' || MACSYS='hardware'
-      writeConfigKey "arc.macsys" "${MACSYS}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="o"
-      ;;
-    u) [ "${LKM}" = "prod" ] && LKM='dev' || LKM='prod'
-      writeConfigKey "lkm" "${LKM}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="u"
-      ;;
-    # Dev Section
-    8) [ "${DEVOPTS}" = "true" ] && DEVOPTS='false' || DEVOPTS='true'
-      DEVOPTS="${DEVOPTS}"
-      NEXT="8"
-      ;;
-    v) saveMenu; NEXT="v" ;;
-    n) editGrubCfg; NEXT="n" ;;
-    w) resetLoader; NEXT="w" ;;
-    J) juniorboot; NEXT="J" ;;
-    F) formatdisks; NEXT="F" ;;
-    L) greplogs; NEXT="L" ;;
-    # Loader Settings
-    x) backupMenu; NEXT="x" ;;
-    9) [ "${OFFLINE}" = "true" ] && OFFLINE='false' || OFFLINE='true'
-      OFFLINE="${OFFLINE}"
-      writeConfigKey "arc.offline" "${OFFLINE}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-      BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
-      NEXT="9"
-      ;;
-    y) keymapMenu; NEXT="y" ;;
-    z) updateMenu; NEXT="z" ;;
-    0) credits; NEXT="0" ;;
-  esac
-done
+arcmenu
 clear
 
 # Inform user

@@ -115,9 +115,9 @@ jobs:
       - name: Pack
         run: |
           if [ -n "${{ env.VERSION }}" ]; then
-            zip -9 "arc-${{ env.VERSION }}.img.zip" arc.img
-            zip -9 "arc-${{ env.VERSION }}.vmdk-dyn.zip" arc-dyn.vmdk
-            zip -9 "arc-${{ env.VERSION }}.vmdk-flat.zip" arc.vmdk arc-flat.vmdk
+            zip -9 "arc-a-${{ env.VERSION }}.img.zip" arc.img
+            zip -9 "arc-a-${{ env.VERSION }}.vmdk-dyn.zip" arc-dyn.vmdk
+            zip -9 "arc-a-${{ env.VERSION }}.vmdk-flat.zip" arc.vmdk arc-flat.vmdk
           else
             zip -9 "arc.img.zip" arc.img
           fi
@@ -141,7 +141,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
           prerelease: true
           files: |
-            arc-${{ env.VERSION }}.img.zip
-            arc-${{ env.VERSION }}.vmdk-dyn.zip
-            arc-${{ env.VERSION }}.vmdk-flat.zip
+            arc-a-${{ env.VERSION }}.img.zip
+            arc-a-${{ env.VERSION }}.vmdk-dyn.zip
+            arc-a-${{ env.VERSION }}.vmdk-flat.zip
             update.zip

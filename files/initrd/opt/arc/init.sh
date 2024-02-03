@@ -198,14 +198,5 @@ for D in $(lsblk -dpno NAME); do
   fi
 done
 
-# Check memory and load Arc
-RAM=$(free -m | grep -i mem | awk '{print$2}')
-if [ ${RAM} -le 3500 ]; then
-  echo -e "\033[1;31mYou have less than 4GB of RAM, if errors occur in loader creation, please increase the amount of RAM.\033[0m\n"
-  echo -e "\033[1;31mUse arc.sh to proceed. Not recommended!\033[0m\n"
-elif [ ${HASATA} = "0" ]; then
-  echo -e "\033[1;31m*** Please insert at least one Sata/SAS Disk for System Installation, except for the Bootloader Disk. ***\033[0m\n"
-  echo -e "\033[1;31mUse arc.sh to proceed. Not recommended!\033[0m\n"
-else
-  arc.sh
-fi
+# Load Arc
+arc.sh
