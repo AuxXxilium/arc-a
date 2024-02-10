@@ -178,7 +178,7 @@ function arcsettings() {
   writeConfigKey "addons.hibernation" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.hdddb" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.multismb3" "" "${USER_CONFIG_FILE}"
-  writeConfigKey "addons.nvmestorage" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.nvmevolume" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.powersched" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.storagepanel" "" "${USER_CONFIG_FILE}"
   # Check for ACPI Support
