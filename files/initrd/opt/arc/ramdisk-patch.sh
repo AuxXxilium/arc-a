@@ -65,7 +65,7 @@ fi
 
 declare -A SYNOINFO
 declare -A ADDONS
-declare -A USERMODULES
+declare -A MODULES
 
 # Read synoinfo, addons and extensions from config
 while IFS=': ' read -r KEY VALUE; do
@@ -77,7 +77,7 @@ done < <(readConfigMap "addons" "${USER_CONFIG_FILE}")
 
 # Read modules from user config
 while IFS=': ' read -r KEY VALUE; do
-  [ -n "${KEY}" ] && USERMODULES["${KEY}"]="${VALUE}"
+  [ -n "${KEY}" ] && MODULES["${KEY}"]="${VALUE}"
 done < <(readConfigMap "modules" "${USER_CONFIG_FILE}")
 
 # Patches (diff -Naru OLDFILE NEWFILE > xxx.patch)
@@ -144,7 +144,7 @@ gzip -dc "${LKM_PATH}/rp-${PLATFORM}-${KVER}-${LKM}.ko.gz" >"${RAMDISK_PATH}/usr
 mkdir -p "${RAMDISK_PATH}/addons"
 echo "#!/bin/sh" >"${RAMDISK_PATH}/addons/addons.sh"
 echo 'echo "addons.sh called with params ${@}"' >>"${RAMDISK_PATH}/addons/addons.sh"
-echo "export LOADERLABEL=ARC" >>"${RAMDISK_PATH}/addons/addons.sh"
+echo "export LOADERLABEL=ARC-A" >>"${RAMDISK_PATH}/addons/addons.sh"
 echo "export LOADERVERSION=${ARC_VERSION}" >>"${RAMDISK_PATH}/addons/addons.sh"
 echo "export PLATFORM=${PLATFORM}" >>"${RAMDISK_PATH}/addons/addons.sh"
 echo "export MODEL=${MODEL}" >>"${RAMDISK_PATH}/addons/addons.sh"
