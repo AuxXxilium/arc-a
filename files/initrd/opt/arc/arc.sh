@@ -220,7 +220,7 @@ function make() {
     [ -z "${ADDON}" ] && continue
     if ! checkAddonExist "${ADDON}" "${PLATFORM}" "${KVER}"; then
       dialog --backtitle "$(backtitle)" --title "Error" --aspect 18 \
-        --msgbox "Addon ${ADDON} not found!" 0 0
+        --infobox "Addon ${ADDON} not found!" 0 0
       return 1
     fi
   done < <(readConfigMap "addons" "${USER_CONFIG_FILE}")
@@ -229,27 +229,13 @@ function make() {
     deleteConfigKey "modules.mmc_block" "${USER_CONFIG_FILE}"
     deleteConfigKey "modules.mmc_core" "${USER_CONFIG_FILE}"
   fi
-  while true; do
-    dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-      --infobox "Get PAT Data from Syno..." 3 30
-    idx=0
-    while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-      PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
-      PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
-      PAT_URL=${PAT_URL%%\?*}
-      if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
-        break
-      fi
-      sleep 3
-      idx=$((${idx} + 1))
-    done
-    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
+    while true; do
       dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-        --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
+        --infobox "Get PAT Data from Syno..." 3 30
       idx=0
       while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-        PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
-        PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
+        PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
+        PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
         PAT_URL=${PAT_URL%%\?*}
         if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
           break
@@ -257,27 +243,49 @@ function make() {
         sleep 3
         idx=$((${idx} + 1))
       done
-    fi
-    break
-  done
-  writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
-  # Check for existing Files
-  DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
-  # Get new Files
-  DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL}/${PRODUCTVER}/${PAT_HASH}.tar"
-  STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
-  if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
-    dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-    --msgbox "No DSM Image found!\nTry Syno Link." 0 0
-    # Grep PAT_URL
-    PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
-    STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
-    if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
-      dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-        --msgbox "No DSM Image found!\ Exit." 0 0
-      return 1
-    fi
+      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
+        dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+          --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
+        idx=0
+        while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
+          PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
+          PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
+          PAT_URL=${PAT_URL%%\?*}
+          if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
+            break
+          fi
+          sleep 3
+          idx=$((${idx} + 1))
+        done
+      fi
+      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
+          dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
+            --infobox "No DSM Data found!\ Exit." 0 0
+          sleep 5
+          return 1
+      fi
+      writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
+      writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
+    if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
+      writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
+      writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
+      # Check for existing Files
+      DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
+      # Get new Files
+      DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL/+/%2B}/${PRODUCTVER}/${PAT_HASH}.tar"
+      STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
+      if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+        dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+        --infobox "No DSM Image found!\nTry Syno Link." 0 0
+        # Grep PAT_URL
+        PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
+        STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
+        if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+          dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+            --infobox "No DSM Image found!\ Exit." 0 0
+          sleep 5
+          return 1
+        fi
     # Extract Files
     header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
     case ${header} in
