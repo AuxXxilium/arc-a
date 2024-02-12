@@ -217,6 +217,7 @@ function arcsettings() {
   writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.expands" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.hibernation" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.hdddb" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.multismb3" "" "${USER_CONFIG_FILE}"
