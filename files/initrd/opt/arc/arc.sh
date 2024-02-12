@@ -103,6 +103,48 @@ function backtitle() {
 }
 
 ###############################################################################
+# Force Update Loader
+function updateMenu() {
+  dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+    --infobox "Checking latest version..." 0 0
+  ACTUALVERSION="${ARC_VERSION}"
+  # Ask for Tag
+  TAG="$(curl --insecure -s https://api.github.com/repos/AuxXxilium/arc-a/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}')"
+  if [[ $? -ne 0 || -z "${TAG}" ]]; then
+    dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+      --infobox "Error checking new Version!" 0 0
+  fi
+  if [ "${ACTUALVERSION}" = "${TAG}" ]; then
+    arcMenu
+  fi
+  dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+    --infobox "Downloading ${TAG}" 0 0
+  # Download update file
+  STATUS=$(curl --insecure -w "%{http_code}" -L "https://github.com/AuxXxilium/arc-a/releases/download/${TAG}/arc-a-${TAG}.img.zip" -o "${TMP_PATH}/arc-a-${TAG}.img.zip")
+  if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+    dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+      --infobox "Error downloading Updatefile!\nUse current Version." 0 0
+    arcMenu
+  fi
+  unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
+  rm -f "${TMP_PATH}/arc-a-${TAG}.img.zip"
+  if [ $? -ne 0 ]; then
+    dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+      --infobox "Error extracting Updatefile!\nUse current Version." 0 0
+    arcMenu
+  fi
+  dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+    --infobox "Installing new Loader Image" 0 0
+  # Process complete update
+  umount "${PART1_PATH}" "${PART2_PATH}" "${PART3_PATH}"
+  dd if="${TMP_PATH}/arc.img" of=$(blkid | grep 'LABEL="ARC3"' | cut -d3 -f1) bs=1M conv=fsync
+  # Ask for Boot
+  rm -f "${TMP_PATH}/arc.img"
+  exec reboot
+  exit 0
+}
+
+###############################################################################
 # Make Model Config
 function arcMenu() {
   # read model config for dt and aes
@@ -229,13 +271,27 @@ function make() {
     deleteConfigKey "modules.mmc_block" "${USER_CONFIG_FILE}"
     deleteConfigKey "modules.mmc_core" "${USER_CONFIG_FILE}"
   fi
-    while true; do
+  while true; do
+    dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+      --infobox "Get PAT Data from Syno..." 3 30
+    idx=0
+    while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
+      PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
+      PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+      PAT_URL=${PAT_URL%%\?*}
+      if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
+        break
+      fi
+      sleep 3
+      idx=$((${idx} + 1))
+    done
+    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
       dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-        --infobox "Get PAT Data from Syno..." 3 30
+        --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
       idx=0
       while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-        PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
-        PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+        PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
+        PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
         PAT_URL=${PAT_URL%%\?*}
         if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
           break
@@ -243,49 +299,35 @@ function make() {
         sleep 3
         idx=$((${idx} + 1))
       done
-      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-        dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-          --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
-        idx=0
-        while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-          PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
-          PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
-          PAT_URL=${PAT_URL%%\?*}
-          if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
-            break
-          fi
-          sleep 3
-          idx=$((${idx} + 1))
-        done
-      fi
-      if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-          dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
-            --infobox "No DSM Data found!\ Exit." 0 0
-          sleep 5
-          return 1
-      fi
-      writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
-    if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
-      writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
-      writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
-      # Check for existing Files
-      DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
-      # Get new Files
-      DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL/+/%2B}/${PRODUCTVER}/${PAT_HASH}.tar"
-      STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
+    fi
+    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
+        dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
+          --infobox "No DSM Data found!\ Exit." 0 0
+        sleep 5
+        return 1
+    fi
+  done
+  writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
+  if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
+    # Check for existing Files
+    DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
+    # Get new Files
+    DSM_URL="https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/files/${MODEL/+/%2B}/${PRODUCTVER}/${PAT_HASH}.tar"
+    STATUS=$(curl --insecure -s -w "%{http_code}" -L "${DSM_URL}" -o "${DSM_FILE}")
+    if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+      dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+      --infobox "No DSM Image found!\nTry Syno Link." 0 0
+      # Grep PAT_URL
+      PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
+      STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
       if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
         dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-        --infobox "No DSM Image found!\nTry Syno Link." 0 0
-        # Grep PAT_URL
-        PAT_FILE="${TMP_PATH}/${PAT_HASH}.pat"
-        STATUS=$(curl -k -w "%{http_code}" -L "${PAT_URL}" -o "${PAT_FILE}" --progress-bar)
-        if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
-          dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
-            --infobox "No DSM Image found!\ Exit." 0 0
-          sleep 5
-          return 1
-        fi
+          --infobox "No DSM Image found!\ Exit." 0 0
+        sleep 5
+        return 1
+      fi
+    fi
     # Extract Files
     header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
     case ${header} in
