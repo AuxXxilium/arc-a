@@ -271,13 +271,26 @@ function make() {
     deleteConfigKey "modules.mmc_block" "${USER_CONFIG_FILE}"
     deleteConfigKey "modules.mmc_core" "${USER_CONFIG_FILE}"
   fi
-  while true; do
+  dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+    --infobox "Get PAT Data from Syno..." 3 30
+  idx=0
+  while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
+    PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
+    PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+    PAT_URL=${PAT_URL%%\?*}
+    if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
+      break
+    fi
+    sleep 3
+    idx=$((${idx} + 1))
+  done
+  if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
     dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-      --infobox "Get PAT Data from Syno..." 3 30
+      --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
     idx=0
     while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-      PAT_URL="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].url')"
-      PAT_HASH="$(curl -skL "https://www.synology.com/api/support/findDownloadInfo?lang=en-us&product=${MODEL/+/%2B}&major=${PRODUCTVER%%.*}&minor=${PRODUCTVER##*.}" | jq -r '.info.system.detail[0].items[0].files[0].checksum')"
+      PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
+      PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
       PAT_URL=${PAT_URL%%\?*}
       if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
         break
@@ -285,32 +298,19 @@ function make() {
       sleep 3
       idx=$((${idx} + 1))
     done
-    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-      dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
-        --infobox "Syno Connection failed,\ntry to get from Github..." 4 30
-      idx=0
-      while [ ${idx} -le 3 ]; do # Loop 3 times, if successful, break
-        PAT_URL="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_url")"
-        PAT_HASH="$(curl -skL "https://raw.githubusercontent.com/AuxXxilium/arc-dsm/main/dsm/${MODEL/+/%2B}/${PRODUCTVER%%.*}.${PRODUCTVER##*.}/pat_hash")"
-        PAT_URL=${PAT_URL%%\?*}
-        if [[ -n "${PAT_URL}" && -n "${PAT_HASH}" ]]; then
-          break
-        fi
-        sleep 3
-        idx=$((${idx} + 1))
-      done
-    fi
-    if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
-        dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
-          --infobox "No DSM Data found!\ Exit." 0 0
-        sleep 5
-        return 1
-    fi
-    break
-  done
-  writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
+  fi
+  if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
+    dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
+      --infobox "No DSM Data found!\ Exit." 0 0
+    sleep 5
+    return 1
+  else
+    dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+      --infobox "Get PAT Data sucessfull..." 3 30
+  fi
   if [[ "${PAT_HASH}" != "${PAT_HASH_CONF}" || ! -f "${ORI_ZIMAGE_FILE}" || ! -f "${ORI_RDGZ_FILE}" ]]; then
+    writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
+    writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
     # Check for existing Files
     DSM_FILE="${UNTAR_PAT_PATH}/${PAT_HASH}.tar"
     # Get new Files
@@ -328,43 +328,50 @@ function make() {
         sleep 5
         return 1
       fi
+      # Extract Files
+      header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
+      case ${header} in
+          105)
+          isencrypted="no"
+          ;;
+          213)
+          isencrypted="no"
+          ;;
+          255)
+          isencrypted="yes"
+          ;;
+          *)
+          echo -e "Could not determine if pat file is encrypted or not, maybe corrupted, try again!"
+          ;;
+      esac
+      if [ "${isencrypted}" = "yes" ]; then
+        # Uses the extractor to untar PAT file
+        LD_LIBRARY_PATH="${EXTRACTOR_PATH}" "${EXTRACTOR_PATH}/${EXTRACTOR_BIN}" "${PAT_FILE}" "${UNTAR_PAT_PATH}"
+      else
+        # Untar PAT file
+        tar xf "${PAT_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
+      fi
+      # Cleanup PAT Download
+      rm -f "${PAT_FILE}"
+    elif [ -f "${DSM_FILE}" ]; then
+      tar xf "${DSM_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
+    elif [ ! -f "${UNTAR_PAT_PATH}/zImage" ]; then
+      dialog --backtitle "$(backtitle)" --title "DSM Download" --aspect 18 \
+        --infobox "ERROR: No DSM Image found!" 0 0
+      sleep 5
+      return 1
     fi
-    # Extract Files
-    header=$(od -bcN2 ${PAT_FILE} | head -1 | awk '{print $3}')
-    case ${header} in
-        105)
-        isencrypted="no"
-        ;;
-        213)
-        isencrypted="no"
-        ;;
-        255)
-        isencrypted="yes"
-        ;;
-        *)
-        echo -e "Could not determine if pat file is encrypted or not, maybe corrupted, try again!"
-        ;;
-    esac
-    if [ "${isencrypted}" = "yes" ]; then
-      # Uses the extractor to untar PAT file
-      LD_LIBRARY_PATH="${EXTRACTOR_PATH}" "${EXTRACTOR_PATH}/${EXTRACTOR_BIN}" "${PAT_FILE}" "${UNTAR_PAT_PATH}"
-    else
-      # Untar PAT file
-      tar xf "${PAT_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
-    fi
-    # Cleanup PAT Download
-    rm -f "${PAT_FILE}"
-  elif [ -f "${DSM_FILE}" ]; then
-    tar xf "${DSM_FILE}" -C "${UNTAR_PAT_PATH}" >"${LOG_FILE}" 2>&1
+    dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
+      --infobox "Image unpack sucessfull..." 3 30
+    # Copy DSM Files to Locations if DSM Files not found
+    cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART1_PATH}"
+    cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART1_PATH}"
+    cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART2_PATH}"
+    cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART2_PATH}"
+    cp -f "${UNTAR_PAT_PATH}/zImage" "${ORI_ZIMAGE_FILE}"
+    cp -f "${UNTAR_PAT_PATH}/rd.gz" "${ORI_RDGZ_FILE}"
+    rm -rf "${UNTAR_PAT_PATH}"
   fi
-  # Copy DSM Files to Locations if DSM Files not found
-  cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART1_PATH}"
-  cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART1_PATH}"
-  cp -f "${UNTAR_PAT_PATH}/grub_cksum.syno" "${PART2_PATH}"
-  cp -f "${UNTAR_PAT_PATH}/GRUB_VER" "${PART2_PATH}"
-  cp -f "${UNTAR_PAT_PATH}/zImage" "${ORI_ZIMAGE_FILE}"
-  cp -f "${UNTAR_PAT_PATH}/rd.gz" "${ORI_RDGZ_FILE}"
-  rm -rf "${UNTAR_PAT_PATH}"
   # Reset Bootcount if User rebuild DSM
   if [[ -z "${BOOTCOUNT}" || ${BOOTCOUNT} -gt 0 ]]; then
     writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
@@ -401,7 +408,7 @@ function boot() {
 ###############################################################################
 ###############################################################################
 # Main loop
-arcMenu
+updateMenu
 
 # Inform user
 echo -e "Call \033[1;34marc.sh\033[0m to configure loader"
