@@ -306,6 +306,7 @@ function make() {
         sleep 5
         return 1
     fi
+    break
   done
   writeConfigKey "arc.paturl" "${PAT_URL}" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.pathash" "${PAT_HASH}" "${USER_CONFIG_FILE}"
