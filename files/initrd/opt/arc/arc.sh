@@ -211,9 +211,9 @@ function arcsettings() {
   # Read Model Values
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   DT="$(readModelKey "${MODEL}" "dt")"
-  ARCCONF="$(readConfigKey "arc.serial" "${MODEL_CONFIG_PATH}/${MODEL}.yml")"
   # Read Arc Patch from File
   SN="$(readModelKey "${MODEL}" "arc.serial")"
+  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
@@ -228,7 +228,6 @@ function arcsettings() {
   if ! grep -q "^flags.*acpi.*" /proc/cpuinfo; then
     deleteConfigKey "addons.acpid" "${USER_CONFIG_FILE}"
   fi
-  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   # Get Network Config for Loader
   getnet
