@@ -211,9 +211,9 @@ function arcsettings() {
   # Read Model Values
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   DT="$(readModelKey "${MODEL}" "dt")"
-  ARCCONF="$(readConfigKey "arc.serial" "${MODEL_CONFIG_PATH}/${MODEL}.yml")"
   # Read Arc Patch from File
   SN="$(readModelKey "${MODEL}" "arc.serial")"
+  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
@@ -228,7 +228,6 @@ function arcsettings() {
   if ! grep -q "^flags.*acpi.*" /proc/cpuinfo; then
     deleteConfigKey "addons.acpid" "${USER_CONFIG_FILE}"
   fi
-  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   # Get Network Config for Loader
   getnet
@@ -391,7 +390,6 @@ function boot() {
   if [ $? -eq 0 ]; then
     make
   fi
-  grub-editenv ${GRUB_PATH}/grubenv set next_entry="boot"
   writeConfigKey "arc.bootcount" "0" "${USER_CONFIG_FILE}"
   dialog --backtitle "$(backtitle)" --title "Arc Boot" \
     --infobox "Booting DSM...\nPlease stay patient!" 4 25
