@@ -95,7 +95,9 @@ function updateMenu() {
   TAG="$(curl --insecure -s https://api.github.com/repos/AuxXxilium/arc-a/releases/latest | grep "tag_name" | awk '{print substr($2, 2, length($2)-3)}')"
   if [[ $? -ne 0 || -z "${TAG}" ]]; then
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
-      --infobox "Error checking new Version!" 0 0
+      --infobox "Error checking new Version!\nUse current Version." 0 0
+    sleep 5
+    arcMenu
   fi
   if [ "${ACTUALVERSION}" = "${TAG}" ]; then
     arcMenu
@@ -103,10 +105,11 @@ function updateMenu() {
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
     --infobox "Downloading ${TAG}" 0 0
   # Download update file
-  STATUS=$(curl --insecure -w "%{http_code}" -L "https://github.com/AuxXxilium/arc-a/releases/download/${TAG}/arc-a-${TAG}.img.zip" -o "${TMP_PATH}/arc-a-${TAG}.img.zip")
+  STATUS=$(curl --insecure -s -w "%{http_code}" -L "https://github.com/AuxXxilium/arc-a/releases/download/${TAG}/arc-a-${TAG}.img.zip" -o "${TMP_PATH}/arc-a-${TAG}.img.zip")
   if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
       --infobox "Error downloading Updatefile!\nUse current Version." 0 0
+    sleep 5
     arcMenu
   fi
   unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
@@ -114,6 +117,7 @@ function updateMenu() {
   if [ $? -ne 0 ]; then
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
       --infobox "Error extracting Updatefile!\nUse current Version." 0 0
+    sleep 5
     arcMenu
   fi
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
