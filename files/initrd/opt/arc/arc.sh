@@ -285,7 +285,7 @@ function make() {
   fi
   if [[ -z "${PAT_URL}" || -z "${PAT_HASH}" ]]; then
     dialog --backtitle "$(backtitle)" --title "DSM Data" --aspect 18 \
-      --infobox "No DSM Data found!\ Exit." 0 0
+      --infobox "No DSM Data found!\nExit." 0 0
     sleep 5
     return 1
   else
