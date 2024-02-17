@@ -47,7 +47,6 @@ fi
 
 # Get Arc Data from Config
 DIRECTBOOT="$(readConfigKey "arc.directboot" "${USER_CONFIG_FILE}")"
-BOOTCOUNT="$(readConfigKey "arc.bootcount" "${USER_CONFIG_FILE}")"
 CONFDONE="$(readConfigKey "arc.confdone" "${USER_CONFIG_FILE}")"
 BUILDDONE="$(readConfigKey "arc.builddone" "${USER_CONFIG_FILE}")"
 ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
@@ -59,47 +58,30 @@ MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
 ODP="$(readConfigKey "arc.odp" "${USER_CONFIG_FILE}")"
 HDDSORT="$(readConfigKey "arc.hddsort" "${USER_CONFIG_FILE}")"
 USBMOUNT="$(readConfigKey "arc.usbmount" "${USER_CONFIG_FILE}")"
-STATICIP="$(readConfigKey "arc.staticip" "${USER_CONFIG_FILE}")"
 ARCIPV6="$(readConfigKey "arc.ipv6" "${USER_CONFIG_FILE}")"
+EMMCBOOT="$(readConfigKey "arc.emmcboot" "${USER_CONFIG_FILE}")"
 OFFLINE="$(readConfigKey "arc.offline" "${USER_CONFIG_FILE}")"
 
 ###############################################################################
 # Mounts backtitle dynamically
 function backtitle() {
-  BACKTITLE="${ARC_TITLE} |"
-  if [ -n "${MODEL}" ]; then
-    BACKTITLE+=" ${MODEL}"
-  else
-    BACKTITLE+=" (no model)"
+  if [ ! -n "${MODEL}" ]; then
+    MODEL=" (no Model)"
   fi
-  BACKTITLE+=" |"
-  if [ -n "${PRODUCTVER}" ]; then
-    BACKTITLE+=" ${PRODUCTVER}"
-  else
-    BACKTITLE+=" (no version)"
+  if [ ! -n "${PRODUCTVER}" ]; then
+    IPCON=" (no Version)"
   fi
-  BACKTITLE+=" |"
-  if [ -n "${IPCON}" ]; then
-    BACKTITLE+=" ${IPCON}"
-  else
-    BACKTITLE+=" (no IP)"
+  if [ ! -n "${IPCON}" ]; then
+    IPCON=" (no IP)"
   fi
-  BACKTITLE+=" |"
-  BACKTITLE+=" Patch: ${ARCPATCH}"
-  BACKTITLE+=" |"
-  if [ "${CONFDONE}" = "true" ]; then
-    BACKTITLE+=" Config: Y"
-  else
-    BACKTITLE+=" Config: N"
-  fi
-  BACKTITLE+=" |"
-  if [ "${BUILDDONE}" = "true" ]; then
-    BACKTITLE+=" Build: Y"
-  else
-    BACKTITLE+=" Build: N"
-  fi
-  BACKTITLE+=" |"
-  BACKTITLE+=" ${MACHINE}(${BUS^^})"
+  BACKTITLE="${ARC_TITLE} | "
+  BACKTITLE+="${MODEL} | "
+  BACKTITLE+="${PRODUCTVER} | "
+  BACKTITLE+="${IPCON} | "
+  BACKTITLE+="Patch: ${ARCPATCH} | "
+  BACKTITLE+="Config: ${CONFDONE} | "
+  BACKTITLE+="Build: ${BUILDDONE} | "
+  BACKTITLE+="${MACHINE}(${BUS^^})"
   echo "${BACKTITLE}"
 }
 
@@ -156,11 +138,9 @@ function arcMenu() {
   writeConfigKey "productver" "" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.confdone" "false" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.builddone" "false" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.remap" "" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.paturl" "" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.pathash" "" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.sn" "" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.mac1" "" "${USER_CONFIG_FILE}"
   if [ "${DT}" = "true" ]; then
     deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
     deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
@@ -215,7 +195,7 @@ function arcsettings() {
   # Read Arc Patch from File
   SN="$(readModelKey "${MODEL}" "arc.serial")"
   writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.patch" "arc" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.patch" "true" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.expands" "" "${USER_CONFIG_FILE}"
@@ -268,9 +248,12 @@ function make() {
     fi
   done < <(readConfigMap "addons" "${USER_CONFIG_FILE}")
   # Check for eMMC Boot
-  if [[ ! "${LOADER_DISK}" = /dev/mmcblk* ]]; then
+  if [ "${EMMCBOOT}" = "false" ]; then
     deleteConfigKey "modules.mmc_block" "${USER_CONFIG_FILE}"
     deleteConfigKey "modules.mmc_core" "${USER_CONFIG_FILE}"
+  else
+    writeConfigKey "modules.mmc_block" "" "${USER_CONFIG_FILE}"
+    writeConfigKey "modules.mmc_core" "" "${USER_CONFIG_FILE}"
   fi
   dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
     --infobox "Get PAT Data from Syno..." 3 30
@@ -412,12 +395,12 @@ function boot() {
 updateMenu
 
 # Inform user
-echo -e "Call \033[1;34marc.sh\033[0m to configure loader"
+echo -e "Call \033[1;34marc.sh\033[0m to configure Loader"
 echo
-echo -e "Access:"
+echo -e "SSH Access:"
 echo -e "IP: \033[1;34m${IPCON}\033[0m"
 echo -e "User: \033[1;34mroot\033[0m"
 echo -e "Password: \033[1;34marc\033[0m"
 echo
-echo -e "Web Terminal Access:"
+echo -e "Web Terminal:"
 echo -e "Address: \033[1;34mhttp://${IPCON}:7681\033[0m"
