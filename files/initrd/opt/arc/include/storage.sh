@@ -151,7 +151,7 @@ function getmap() {
       deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
       deleteConfigKey "cmdline.SataPortMap" "${USER_CONFIG_FILE}"
       dialog --backtitle "$(backtitle)" --title "Arc Disks" \
-        --msgbox "Computed Values:\nSataRemap: ${SATAREMAP}" 0 0
+        --infobox "Computed Values:\nSataRemap: ${SATAREMAP}" 0 0
     elif [ "${REMAP}" = "ahci" ]; then
       writeConfigKey "cmdline.ahci_remap" "${SATAREMAP}" "${USER_CONFIG_FILE}"
       deleteConfigKey "cmdline.DiskIdxMap" "${USER_CONFIG_FILE}"
