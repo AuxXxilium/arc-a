@@ -4,7 +4,7 @@ function getnet() {
   ARCMACNUM=4
   ARCMAC="$(readModelKey "${MODEL}" "arc.mac${ARCMACNUM}")"
   writeConfigKey "mac.eth0" "${ARCMAC}" "${USER_CONFIG_FILE}"
-  writeConfigKey "arc.macsys" "hardware" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.macsys" "arc" "${USER_CONFIG_FILE}"
   MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
 }
 
