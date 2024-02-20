@@ -133,7 +133,7 @@ if grep -q "force_arc" /proc/cmdline; then
   echo -e "\033[1;34mUser requested edit settings.\033[0m"
 elif [ "${BUILDDONE}" = "true" ]; then
   echo -e "\033[1;34mLoader is configured!\033[0m"
-  boot.sh && exit 0
+  boot.sh
 else
   echo -e "\033[1;34mUser requested edit settings.\033[0m"
 fi
@@ -170,13 +170,13 @@ for ETH in ${ETHX}; do
     fi
     if [ ${COUNT} -gt ${BOOTIPWAIT} ]; then
       echo -e echo -e "\r\033[1;37m${DRIVER}:\033[0m TIMEOUT"
-      deleteConfigKey "ip.${ETH}" "${IP}" "${USER_CONFIG_FILE}"
+      deleteConfigKey "ip.${ETH}" "${USER_CONFIG_FILE}"
       break
     fi
     sleep 3
     if ethtool ${ETH} | grep 'Link detected' | grep -q 'no'; then
       echo -e "\r\033[1;37m${DRIVER}:\033[0m NOT CONNECTED"
-      deleteConfigKey "ip.${ETH}" "${IP}" "${USER_CONFIG_FILE}"
+      deleteConfigKey "ip.${ETH}" "${USER_CONFIG_FILE}"
       break
     fi
     COUNT=$((${COUNT} + 3))

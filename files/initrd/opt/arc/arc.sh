@@ -65,13 +65,13 @@ OFFLINE="$(readConfigKey "arc.offline" "${USER_CONFIG_FILE}")"
 # Mounts backtitle dynamically
 function backtitle() {
   if [ ! -n "${MODEL}" ]; then
-    MODEL="(no Model)"
+    MODEL="(Model)"
   fi
   if [ ! -n "${PRODUCTVER}" ]; then
-    PRODUCTVER="(no Version)"
+    PRODUCTVER="(Version)"
   fi
   if [ ! -n "${IPCON}" ]; then
-    IPCON="(no IP)"
+    IPCON="(IP)"
   fi
   BACKTITLE="${ARC_TITLE} | "
   BACKTITLE+="${MODEL} | "
