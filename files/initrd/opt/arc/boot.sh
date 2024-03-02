@@ -95,22 +95,32 @@ declare -A CMDLINE
 if grep -q "force_junior" /proc/cmdline; then
   CMDLINE['force_junior']=""
 fi
-[ ${EFI} -eq 1 ] && CMDLINE['withefi']="" || CMDLINE['noefi']=""
+if grep -q "recovery" /proc/cmdline; then
+  CMDLINE['force_junior']=""
+  CMDLINE['recovery']=""
+fi
+if [ ${EFI} -eq 1 ]; then
+  CMDLINE['withefi']=""
+else
+  CMDLINE['noefi']=""
+fi
 if [ ! "${BUS}" = "usb" ]; then
-  LOADER_DEVICE_NAME=$(echo ${LOADER_DISK} | sed 's|/dev/||')
   SIZE=$(($(cat /sys/block/${LOADER_DISK/\/dev\//}/size) / 2048 + 10))
   # Read SATADoM type
   DOM="$(readModelKey "${MODEL}" "dom")"
   CMDLINE['synoboot_satadom']="${DOM}"
   CMDLINE['dom_szmax']="${SIZE}"
 fi
-CMDLINE['syno_hw_version']="${MODEL}"
+MODELID="$(readModelKey ${MODEL} "id")"
+CMDLINE['syno_hw_version']="${MODELID:-${MODEL}}"
 [ -z "${VID}" ] && VID="0x46f4" # Sanity check
 [ -z "${PID}" ] && PID="0x0001" # Sanity check
 CMDLINE['vid']="${VID}"
 CMDLINE['pid']="${PID}"
-CMDLINE['panic']="${KERNELPANIC:-0}"
+CMDLINE['panic']="${KERNELPANIC:-5}"
 CMDLINE['console']="ttyS0,115200n8"
+CMDLINE['no_console_suspend']="1"
+CMDLINE['consoleblank']="0"
 CMDLINE['earlyprintk']=""
 CMDLINE['earlycon']="uart8250,io,0x3f8,115200n8"
 if [ "${EMMCBOOT}" = "false" ]; then
@@ -120,9 +130,8 @@ elif [ "${EMMCBOOT}" = "true" ]; then
 fi
 CMDLINE['loglevel']="15"
 CMDLINE['log_buf_len']="32M"
-CMDLINE['sn']="${SN}"
 CMDLINE['net.ifnames']="0"
-CMDLINE['biosdevname']="0"
+CMDLINE['sn']="${SN}"
 
 if [ -n "$(ls /dev/mmcblk* 2>/dev/null)" ] && [ ! "${BUS}" = "mmc" ] && [ ! "${EMMCBOOT}" = "true" ]; then
   [ ! "${CMDLINE['modprobe.blacklist']}" = "" ] && CMDLINE['modprobe.blacklist']+=","
@@ -188,22 +197,11 @@ elif [ "${DIRECTBOOT}" = "false" ]; then
   echo -e " \033[1;34mDetected ${N} NIC.\033[0m \033[1;37mWaiting for Connection:\033[0m"
   for ETH in ${ETHX}; do
     IP=""
-    STATICIP="$(readConfigKey "static.${ETH}" "${USER_CONFIG_FILE}")"
     DRIVER=$(ls -ld /sys/class/net/${ETH}/device/driver 2>/dev/null | awk -F '/' '{print $NF}')
     COUNT=0
     while true; do
-      ARCIP="$(readConfigKey "ip.${ETH}" "${USER_CONFIG_FILE}")"
-      if [[ "${STATICIP}" = "true" && -n "${ARCIP}" ]]; then
-        NETMASK="$(readConfigKey "netmask.${ETH}" "${USER_CONFIG_FILE}")"
-        IP="${ARCIP}"
-        NETMASK=$(convert_netmask "${NETMASK}")
-        [ ! -n "${NETMASK}" ] && NETMASK="16"
-        ip addr add ${IP}/${NETMASK} dev ${ETH}
-        MSG="STATIC"
-      else
-        IP="$(getIP ${ETH})"
-        MSG="DHCP"
-      fi
+      IP="$(getIP ${ETH})"
+      MSG="DHCP"
       if [ -n "${IP}" ]; then
         SPEED=$(ethtool ${ETH} | grep "Speed:" | awk '{print $2}')
         echo -e "\r \033[1;37m${DRIVER} (${SPEED} | ${MSG}):\033[0m Access \033[1;34mhttp://${IP}:5000\033[0m to connect to DSM via web."
