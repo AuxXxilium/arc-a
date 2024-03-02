@@ -53,25 +53,36 @@ initConfigKey "arc.kernelload" "power" "${USER_CONFIG_FILE}"
 initConfigKey "arc.kernelpanic" "5" "${USER_CONFIG_FILE}"
 initConfigKey "arc.macsys" "hardware" "${USER_CONFIG_FILE}"
 initConfigKey "arc.odp" "false" "${USER_CONFIG_FILE}"
+initConfigKey "arc.modulescopy" "false" "${USER_CONFIG_FILE}"
 initConfigKey "arc.hddsort" "false" "${USER_CONFIG_FILE}"
+initConfigKey "arc.kernel" "official" "${USER_CONFIG_FILE}"
 initConfigKey "arc.version" "${ARC_VERSION}" "${USER_CONFIG_FILE}"
 initConfigKey "device" "{}" "${USER_CONFIG_FILE}"
 initConfigKey "ip" "{}" "${USER_CONFIG_FILE}"
 initConfigKey "netmask" "{}" "${USER_CONFIG_FILE}"
 initConfigKey "mac" "{}" "${USER_CONFIG_FILE}"
 initConfigKey "static" "{}" "${USER_CONFIG_FILE}"
+# KVM Check
+if grep -q -E '(vmx|svm)' /proc/cpuinfo; then
+  writeConfigKey "arc.kvm" "true" "${USER_CONFIG_FILE}"
+else
+  writeConfigKey "arc.kvm" "false" "${USER_CONFIG_FILE}"
+fi
 
 # Init Network
 ETHX=$(ls /sys/class/net/ | grep -v lo) || true
 MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
 # Write Mac to config
-N=0
+NIC=0
 for ETH in ${ETHX}; do
   MACR="$(cat /sys/class/net/${ETH}/address | sed 's/://g')"
+  if [ -z "${MACR}" ]; then
+    MACR="000000000000"
+  fi
   initConfigKey "mac.${ETH}" "${MACR}" "${USER_CONFIG_FILE}"
   if [ "${MACSYS}" = "custom" ]; then
     MACA="$(readConfigKey "mac.${ETH}" "${USER_CONFIG_FILE}")"
-    if [[ -n "${MACA}" && "${MACA}" != "${MACR}" ]]; then
+    if [ ! "${MACA}" = "${MACR}" ]; then
       MAC="${MACA:0:2}:${MACA:2:2}:${MACA:4:2}:${MACA:6:2}:${MACA:8:2}:${MACA:10:2}"
       echo "Setting ${ETH} MAC to ${MAC}"
       ip link set dev ${ETH} address "${MAC}" >/dev/null 2>&1 &&
@@ -80,13 +91,12 @@ for ETH in ${ETHX}; do
     fi
     echo
   fi
-  ethtool -s ${ETH} wol g 2>/dev/null
-  N=$((${N} + 1))
+  NIC=$((${NIC} + 1))
 done
 # Write NIC Amount to config
-writeConfigKey "device.nic" "${N}" "${USER_CONFIG_FILE}"
+writeConfigKey "device.nic" "${NIC}" "${USER_CONFIG_FILE}"
 # No network devices
-[ ${N} -le 0 ] && die "No NIC found! - Loader does not work without Network connection."
+[ ${NIC} -le 0 ] && die "No NIC found! - Loader does not work without Network connection."
 
 # Get the VID/PID if we are in USB
 VID="0x46f4"
@@ -127,7 +137,7 @@ if grep -q "force_arc" /proc/cmdline; then
   echo -e "\033[1;34mUser requested edit settings.\033[0m"
 elif [ "${BUILDDONE}" = "true" ]; then
   echo -e "\033[1;34mLoader is configured!\033[0m"
-  boot.sh && sleep 2 && exit 0
+  boot.sh && exit 0
 else
   echo -e "\033[1;34mUser requested edit settings.\033[0m"
 fi
@@ -146,7 +156,7 @@ for ETH in ${ETHX}; do
     if [[ "${STATICIP}" = "true" && -n "${ARCIP}" ]]; then
       NETMASK="$(readConfigKey "netmask.${ETH}" "${USER_CONFIG_FILE}")"
       IP="${ARCIP}"
-      NETMASK=$(convert_netmask "${NETMASK}")
+      #NETMASK=$(convert_netmask "${NETMASK}")
       [ ! -n "${NETMASK}" ] && NETMASK="16"
       ip addr add ${IP}/${NETMASK} dev ${ETH}
       MSG="STATIC"
