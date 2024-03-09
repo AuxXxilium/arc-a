@@ -143,9 +143,9 @@ function getmapSelection() {
   SATAREMAP=$(awk '{print $1}' "${TMP_PATH}/remap" | sed 's/.$//')
   EXTERNALCONTROLLER="$(readConfigKey "arc.externalcontroller" "${USER_CONFIG_FILE}")"
   # Show recommended Option to user
-  if [ -n "${SATAREMAP}" ] && [ "${EXTERNALCONTROLLER}" = "true" ] && [ "${MACHINE}" = "NATIVE" ]; then
+  if [[ -n "${SATAREMAP}" && "${EXTERNALCONTROLLER}" = "true" && "${MACHINE}" = "NATIVE" ]]; then
     writeConfigKey "arc.remap" "maxports" "${USER_CONFIG_FILE}"
-  elif [ -n "${SATAREMAP}" ] && [ "${EXTERNALCONTROLLER}" = "true" ]; then
+  elif [[ -n "${SATAREMAP}" && "${EXTERNALCONTROLLER}" = "true" ]]; then
     writeConfigKey "arc.remap" "remap" "${USER_CONFIG_FILE}"
   else
     writeConfigKey "arc.remap" "acports" "${USER_CONFIG_FILE}"
