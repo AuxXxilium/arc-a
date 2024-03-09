@@ -157,7 +157,7 @@ elif [ "${MACSYS}" = "hardware" ]; then
     MAC="$(readConfigKey "mac.${ETH}" "${USER_CONFIG_FILE}")"
     [ -n "${MAC}" ] && NIC=$((${NIC} + 1)) && CMDLINE["mac${NIC}"]="${MAC}"
   done
-  CMDLINE['netif_num']="${N}"
+  CMDLINE['netif_num']="${NIC}"
   CMDLINE['skip_vender_mac_interfaces']="0,1,2,3,4,5,6,7"
 elif [ "${MACSYS}" = "custom" ]; then
   for ETH in ${ETHX}; do

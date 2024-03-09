@@ -71,15 +71,15 @@ declare -A SYNOINFO
 declare -A ADDONS
 declare -A MODULES
 
-# Read synoinfo, addons and extensions from config
+# Read synoinfo from config
 while IFS=': ' read -r KEY VALUE; do
   [ -n "${KEY}" ] && SYNOINFO["${KEY}"]="${VALUE}"
 done < <(readConfigMap "synoinfo" "${USER_CONFIG_FILE}")
+# Read synoinfo from config
 while IFS=': ' read -r KEY VALUE; do
   [ -n "${KEY}" ] && ADDONS["${KEY}"]="${VALUE}"
 done < <(readConfigMap "addons" "${USER_CONFIG_FILE}")
-
-# Read modules from user config
+# Read modules from config
 while IFS=': ' read -r KEY VALUE; do
   [ -n "${KEY}" ] && MODULES["${KEY}"]="${VALUE}"
 done < <(readConfigMap "modules" "${USER_CONFIG_FILE}")
