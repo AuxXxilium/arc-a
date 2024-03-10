@@ -5,7 +5,7 @@
 # See /LICENSE for more information.
 #
 
-name: Build Arc
+name: Build Arc-A
 
 on:
   workflow_dispatch:
@@ -14,10 +14,10 @@ on:
         description: "format %y.%-m.$i or auto"
         required: false
         type: string
-      next:
-        description: "-next Release"
+      notice:
+        description: "Notice here"
         required: false
-        type: boolean
+        type: string
       prerelease:
         description: "pre release"
         default: false
@@ -28,7 +28,7 @@ on:
         type: boolean
       br_version:
         description: "buildroot version"
-        default: "2023.02.x"
+        default: "2023.08.x"
         type: string
       addons_version:
         description: "addons version"
@@ -72,18 +72,17 @@ jobs:
         env:
           REPO: ${{ github.repository }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          swap-storage: false
+
       # Install Dependencies
       - name: Install Dependencies
         run: |
           git config --global user.email "info@auxxxilium.tech"
           git config --global user.name "AuxXxilium"
           sudo timedatectl set-timezone "Europe/Berlin"
-
-          # Clean up disk space
-          docker rmi $(docker images -q)
-          sudo apt update
-          sudo apt -y purge azure-cli* docker* llvm* google* dotnet* powershell* sphinxsearch* mysql* php* 
-          sudo apt -y full-upgrade
 
           sudo apt update
           sudo apt install -y jq gawk libelf-dev qemu-utils
@@ -103,10 +102,6 @@ jobs:
             else
               VERSION="`date +'%y.%-m.%-d'`"
             fi
-          fi
-          
-          if [ "${{ inputs.next }}" = "true" ]; then
-            VERSION="${VERSION}-next"
           fi
           
           echo "Version: ${VERSION}"
