@@ -31,9 +31,6 @@ fi
 # Get Loader Disk Bus
 BUS=$(getBus "${LOADER_DISK}")
 
-# Set Warning to 0
-WARNON=0
-
 # Get DSM Data from Config
 MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
 PRODUCTVER="$(readConfigKey "productver" "${USER_CONFIG_FILE}")"
