@@ -145,7 +145,7 @@ function getmapSelection() {
   # Show recommended Option to user
   if [[ -n "${SATAREMAP}" && "${EXTERNALCONTROLLER}" = "true" && "${MACHINE}" = "NATIVE" ]]; then
     writeConfigKey "arc.remap" "maxports" "${USER_CONFIG_FILE}"
-  elif [[ -n "${SATAREMAP}" && "${EXTERNALCONTROLLER}" = "true" ]]; then
+  elif [[ -n "${SATAREMAP}" && "${EXTERNALCONTROLLER}" = "false" ]]; then
     writeConfigKey "arc.remap" "remap" "${USER_CONFIG_FILE}"
   else
     writeConfigKey "arc.remap" "acports" "${USER_CONFIG_FILE}"
