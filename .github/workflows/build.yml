@@ -225,13 +225,18 @@ jobs:
           tag_name: ${{ env.VERSION }}
           prerelease: ${{ inputs.prerelease }}
           body: |
+            Notice:
+              ${{ inputs.notice }}
+
             Buildroot: ${{ inputs.br_version }}
             Addons: ${{ env.ADDONSTAG }}
             Configs: ${{ env.CONFIGSTAG }}
             Modules: ${{ env.MODULESTAG }}
             Patches: ${{ env.PATCHESTAG }}
             LKM: ${{ env.LKMTAG }}
-            ${{ steps.Changelog.outputs.changelog }}
+
+            Changelog:
+              ${{ steps.Changelog.outputs.changelog }}
           files: |
             arc-a-${{ env.VERSION }}.img.zip
             # arc-a_4GB-${{ env.VERSION }}.img.zip
