@@ -82,7 +82,7 @@ function backtitle() {
   BACKTITLE+="Patch: ${ARCPATCH} | "
   BACKTITLE+="Config: ${CONFDONE} | "
   BACKTITLE+="Build: ${BUILDDONE} | "
-  BACKTITLE+="${MACHINE}(${BUS^^})"
+  BACKTITLE+="${MACHINE}(${BUS})"
   echo "${BACKTITLE}"
 }
 
@@ -98,10 +98,10 @@ function updateMenu() {
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
       --infobox "Error checking new Version!\nUse current Version." 0 0
     sleep 5
-    arcMenu
+    arcModel
   fi
   if [ "${ACTUALVERSION}" = "${TAG}" ]; then
-    arcMenu
+    arcModel
   fi
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
     --infobox "Downloading ${TAG}" 0 0
@@ -111,7 +111,7 @@ function updateMenu() {
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
       --infobox "Error downloading Updatefile!\nUse current Version." 0 0
     sleep 5
-    arcMenu
+    arcModel
   fi
   unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
   rm -f "${TMP_PATH}/arc-a-${TAG}.img.zip"
@@ -119,7 +119,7 @@ function updateMenu() {
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
       --infobox "Error extracting Updatefile!\nUse current Version." 0 0
     sleep 5
-    arcMenu
+    arcModel
   fi
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
     --infobox "Installing new Loader Image" 0 0
@@ -134,7 +134,7 @@ function updateMenu() {
 
 ###############################################################################
 # Make Model Config
-function arcMenu() {
+function arcModel() {
   # read model config for dt and aes
   MODEL="RS4021xs+"
   DT="$(readModelKey "${MODEL}" "dt")"
@@ -157,12 +157,12 @@ function arcMenu() {
     # Delete old files
     rm -f "${ORI_ZIMAGE_FILE}" "${ORI_RDGZ_FILE}" "${MOD_ZIMAGE_FILE}" "${MOD_RDGZ_FILE}"
   fi
-  arcbuild
+  arcVersion
 }
 
 ###############################################################################
 # Shows menu to user type one or generate randomly
-function arcbuild() {
+function arcVersion() {
   # read model values for arcbuild
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   PLATFORM="$(readModelKey "${MODEL}" "platform")"
@@ -173,23 +173,23 @@ function arcbuild() {
     KVER="${PRODUCTVER}-${KVER}"
   fi
   dialog --backtitle "$(backtitle)" --title "Arc Config" \
-    --infobox "Reconfiguring Synoinfo, Addons and Modules" 3 46
-  # Delete synoinfo and reload model/build synoinfo
+    --infobox "Reconfiguring Synoinfo and Modules" 3 40
+  # Reset synoinfo
   writeConfigKey "synoinfo" "{}" "${USER_CONFIG_FILE}"
   while IFS=': ' read -r KEY VALUE; do
     writeConfigKey "synoinfo.\"${KEY}\"" "${VALUE}" "${USER_CONFIG_FILE}"
   done < <(readModelMap "${MODEL}" "productvers.[${PRODUCTVER}].synoinfo")
-  # Rebuild modules
+  # Reset modules
   writeConfigKey "modules" "{}" "${USER_CONFIG_FILE}"
   while read -r ID DESC; do
     writeConfigKey "modules.\"${ID}\"" "" "${USER_CONFIG_FILE}"
   done < <(getAllModules "${PLATFORM}" "${KVER}")
-  arcsettings
+  arcSettings
 }
 
 ###############################################################################
 # Make Arc Settings
-function arcsettings() {
+function arcSettings() {
   # Read Model Values
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   DT="$(readModelKey "${MODEL}" "dt")"
@@ -211,19 +211,25 @@ function arcsettings() {
   fi
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   # Get Network Config for Loader
+  dialog --backtitle "$(backtitle)" --colors --title "Network Config" \
+    --infobox "Network Config..." 3 30
   getnet
-  # Get Portmap for Loader
+  # Select Portmap for Loader (nonDT)
   getmap
-  getmapSelection
+  if [[ "${DT}" = "false" && $(lspci -d ::106 | wc -l) -gt 0 ]]; then
+    dialog --backtitle "$(backtitle)" --colors --title "Storage Map" \
+      --infobox "Storage Map..." 3 30
+    getmapSelection
+  fi
   # Config is done
   writeConfigKey "arc.confdone" "true" "${USER_CONFIG_FILE}"
   CONFDONE="$(readConfigKey "arc.confdone" "${USER_CONFIG_FILE}")"
-  make
+  premake
 }
 
 ###############################################################################
 # Building Loader Online
-function make() {
+function premake() {
   # Read Model Config
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   PLATFORM="$(readModelKey "${MODEL}" "platform")"
@@ -262,6 +268,23 @@ function make() {
     KVER="${PRODUCTVER}-${KVER}"
     MODULESCOPY="false"
     writeConfigKey "arc.modulescopy" "${MODULESCOPY}" "${USER_CONFIG_FILE}"
+  fi
+  # Make Loader
+  make
+}
+
+###############################################################################
+# Building Loader Online
+function make() {
+  # Read Model Config
+  MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
+  PLATFORM="$(readModelKey "${MODEL}" "platform")"
+  PRODUCTVER="$(readConfigKey "productver" "${USER_CONFIG_FILE}")"
+  KVER="$(readModelKey "${MODEL}" "productvers.[${PRODUCTVER}].kver")"
+  DT="$(readModelKey "${MODEL}" "dt")"
+  OFFLINE="$(readConfigKey "arc.offline" "${USER_CONFIG_FILE}")"
+  if [ "${PLATFORM}" = "epyc7002" ]; then
+    KVER="${PRODUCTVER}-${KVER}"
   fi
   # Cleanup
   if [ -d "${UNTAR_PAT_PATH}" ]; then
@@ -403,7 +426,7 @@ function boot() {
   [ "${BUILDDONE}" = "false" ] && dialog --backtitle "$(backtitle)" --title "Alert" \
     --yesno "Config changed, you need to rebuild the Loader?" 0 0
   if [ $? -eq 0 ]; then
-    make
+    premake
   fi
   dialog --backtitle "$(backtitle)" --title "Arc Boot" \
     --infobox "Booting DSM...\nPlease stay patient!" 4 25
