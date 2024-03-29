@@ -102,34 +102,34 @@ function updateMenu() {
   fi
   if [ "${ACTUALVERSION}" = "${TAG}" ]; then
     arcModel
-    exit 0
-  fi
-  dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
-    --infobox "Downloading ${TAG}" 0 0
-  # Download update file
-  STATUS=$(curl --insecure -s -w "%{http_code}" -L "https://github.com/AuxXxilium/arc-a/releases/download/${TAG}/arc-a-${TAG}.img.zip" -o "${TMP_PATH}/arc-a-${TAG}.img.zip")
-  if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+  else
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
-      --infobox "Error downloading Updatefile!\nUse current Version." 0 0
-    sleep 5
-    arcModel
-    exit 0
-  fi
-  unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
-  rm -f "${TMP_PATH}/arc-a-${TAG}.img.zip"
-  if [ $? -ne 0 ]; then
+      --infobox "Downloading ${TAG}" 0 0
+    # Download update file
+    STATUS=$(curl --insecure -s -w "%{http_code}" -L "https://github.com/AuxXxilium/arc-a/releases/download/${TAG}/arc-a-${TAG}.img.zip" -o "${TMP_PATH}/arc-a-${TAG}.img.zip")
+    if [[ $? -ne 0 || ${STATUS} -ne 200 ]]; then
+      dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+        --infobox "Error downloading Updatefile!\nUse current Version." 0 0
+      sleep 5
+      arcModel
+      exit 0
+    fi
+    unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
+    rm -f "${TMP_PATH}/arc-a-${TAG}.img.zip"
+    if [ $? -ne 0 ]; then
+      dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
+        --infobox "Error extracting Updatefile!\nUse current Version." 0 0
+      sleep 5
+      arcModel
+      exit 0
+    fi
     dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
-      --infobox "Error extracting Updatefile!\nUse current Version." 0 0
-    sleep 5
-    arcModel
-    exit 0
+      --infobox "Installing new Loader Image" 0 0
+    # Process complete update
+    umount "${PART1_PATH}" "${PART2_PATH}" "${PART3_PATH}"
+    dd if="${TMP_PATH}/arc.img" of=$(blkid | grep 'LABEL="ARC3"' | cut -d3 -f1) bs=1M conv=fsync
+    exec reboot
   fi
-  dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
-    --infobox "Installing new Loader Image" 0 0
-  # Process complete update
-  umount "${PART1_PATH}" "${PART2_PATH}" "${PART3_PATH}"
-  dd if="${TMP_PATH}/arc.img" of=$(blkid | grep 'LABEL="ARC3"' | cut -d3 -f1) bs=1M conv=fsync
-  exec reboot
   exit 0
 }
 
