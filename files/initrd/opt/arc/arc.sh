@@ -98,9 +98,11 @@ function updateMenu() {
       --infobox "Error checking new Version!\nUse current Version." 0 0
     sleep 5
     arcModel
+    exit 0
   fi
   if [ "${ACTUALVERSION}" = "${TAG}" ]; then
     arcModel
+    exit 0
   fi
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
     --infobox "Downloading ${TAG}" 0 0
@@ -111,6 +113,7 @@ function updateMenu() {
       --infobox "Error downloading Updatefile!\nUse current Version." 0 0
     sleep 5
     arcModel
+    exit 0
   fi
   unzip -oq "${TMP_PATH}/arc-a-${TAG}.img.zip" -d "${TMP_PATH}"
   rm -f "${TMP_PATH}/arc-a-${TAG}.img.zip"
@@ -119,6 +122,7 @@ function updateMenu() {
       --infobox "Error extracting Updatefile!\nUse current Version." 0 0
     sleep 5
     arcModel
+    exit 0
   fi
   dialog --backtitle "$(backtitle)" --title "Upgrade Loader" --aspect 18 \
     --infobox "Installing new Loader Image" 0 0
