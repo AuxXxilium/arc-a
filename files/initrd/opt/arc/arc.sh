@@ -202,7 +202,6 @@ function arcPatch() {
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.expands" "" "${USER_CONFIG_FILE}"
-  writeConfigKey "addons.hibernation" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.hdddb" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.nvmevolume" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.powersched" "" "${USER_CONFIG_FILE}"
