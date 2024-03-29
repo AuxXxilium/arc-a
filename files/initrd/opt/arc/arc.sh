@@ -125,8 +125,6 @@ function updateMenu() {
   # Process complete update
   umount "${PART1_PATH}" "${PART2_PATH}" "${PART3_PATH}"
   dd if="${TMP_PATH}/arc.img" of=$(blkid | grep 'LABEL="ARC3"' | cut -d3 -f1) bs=1M conv=fsync
-  # Ask for Boot
-  rm -f "${TMP_PATH}/arc.img"
   exec reboot
   exit 0
 }
