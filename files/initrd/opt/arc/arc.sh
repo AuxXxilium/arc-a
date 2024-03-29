@@ -271,6 +271,7 @@ function premake() {
     MODULESCOPY="false"
     writeConfigKey "arc.modulescopy" "${MODULESCOPY}" "${USER_CONFIG_FILE}"
   fi
+  # Build Loader
   make
 }
 
