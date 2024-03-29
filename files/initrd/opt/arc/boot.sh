@@ -21,7 +21,7 @@ printf "\033[1;34m%*s\033[0m\n" $(((${#TITLE} + ${COLUMNS}) / 2)) "${TITLE}"
 printf "\033[1;30m%*s\033[0m\n" ${COLUMNS} ""
 TITLE="BOOTING:"
 [ ${EFI} -eq 1 ] && TITLE+=" [UEFI]" || TITLE+=" [Legacy]"
-TITLE+=" [${BUS^^}]"
+TITLE+=" [${BUS}]"
 printf "\033[1;34m%*s\033[0m\n" $(((${#TITLE} + ${COLUMNS}) / 2)) "${TITLE}"
 
 echo
@@ -52,27 +52,21 @@ MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
 PRODUCTVER="$(readConfigKey "productver" "${USER_CONFIG_FILE}")"
 LKM="$(readConfigKey "lkm" "${USER_CONFIG_FILE}")"
 MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
-CPU="$(awk -F':' '/^model name/ {print $2}' /proc/cpuinfo | uniq | sed -e 's/^[ \t]*//')"
-RAMTOTAL=0
-while read -r LINE; do
-  RAMSIZE=${LINE}
-  RAMTOTAL=$((${RAMTOTAL} + ${RAMSIZE}))
-done < <(dmidecode -t memory | grep -i "Size" | cut -d" " -f2 | grep -i "[1-9]")
-RAMTOTAL=$((${RAMTOTAL} * 1024))
-RAM=$(free -m | grep -i mem | awk '{print$2}')
-VENDOR="$(dmidecode -s system-product-name)"
-BOARD="$(dmidecode -s baseboard-product-name)"
+CPU="$(echo $(cat /proc/cpuinfo 2>/dev/null | grep 'model name' | uniq | awk -F':' '{print $2}'))"
+RAMTOAL=$(($(free -m | grep -i mem | awk '{print$2}') / 1024 + 1))
+RAM="${RAMTOTAL}GB"
+VENDOR="$(dmesg 2>/dev/null | grep -i "DMI:" | sed 's/\[.*\] DMI: //i')"
 
-echo -e " \033[1;37mDSM:\033[0m"
-echo -e " Model: \033[1;37m${MODEL}\033[0m"
-echo -e " Version: \033[1;37m${PRODUCTVER}\033[0m"
-echo -e " LKM: \033[1;37m${LKM}\033[0m"
-echo -e " Macsys: \033[1;37m${MACSYS}\033[0m"
+echo -e "\033[1;37mDSM:\033[0m"
+echo -e "Model: \033[1;37m${MODEL}\033[0m"
+echo -e "Version: \033[1;37m${PRODUCTVER}\033[0m"
+echo -e "LKM: \033[1;37m${LKM}\033[0m"
+echo -e "Macsys: \033[1;37m${MACSYS}\033[0m"
 echo
-echo -e " \033[1;37mSystem:\033[0m"
-echo -e " Vendor / Board: \033[1;37m${VENDOR}\033[0m / \033[1;37m${BOARD}\033[0m"
-echo -e " CPU: \033[1;37m${CPU}\033[0m"
-echo -e " MEM: \033[1;37m${RAM}\033[0m / \033[1;37m${RAMTOTAL} MB\033[0m"
+echo -e "\033[1;37mSystem:\033[0m"
+echo -e "VENDOR: \033[1;37m${VENDOR}\033[0m"
+echo -e "CPU: \033[1;37m${CPU}\033[0m"
+echo -e "MEM: \033[1;37m${RAM}\033[0m"
 echo
 
 if [[ ! -f "${MODEL_CONFIG_PATH}/${MODEL}.yml" || -z "$(readModelKey "${MODEL}" "productvers.[${PRODUCTVER}]")" ]]; then
@@ -88,11 +82,33 @@ KERNELLOAD="$(readConfigKey "arc.kernelload" "${USER_CONFIG_FILE}")"
 KERNELPANIC="$(readConfigKey "arc.kernelpanic" "${USER_CONFIG_FILE}")"
 DIRECTBOOT="$(readConfigKey "arc.directboot" "${USER_CONFIG_FILE}")"
 EMMCBOOT="$(readConfigKey "arc.emmcboot" "${USER_CONFIG_FILE}")"
-ETHX=$(ls /sys/class/net/ | grep -v lo) || true
+ETHX=$(ls /sys/class/net/ 2>/dev/null | grep eth) || true
 
 declare -A CMDLINE
 
 # Read and Set Cmdline
+MODELID="$(readModelKey ${MODEL} "id")"
+CMDLINE['syno_hw_version']="${MODELID:-${MODEL}}"
+[ -z "${VID}" ] && VID="0x46f4" # Sanity check
+[ -z "${PID}" ] && PID="0x0001" # Sanity check
+CMDLINE['vid']="${VID}"
+CMDLINE['pid']="${PID}"
+CMDLINE['sn']="${SN}"
+
+NIC=0
+for ETH in ${ETHX}; do
+  MAC="$(readConfigKey "mac.${ETH}" "${USER_CONFIG_FILE}")"
+  [ -n "${MAC}" ] && NIC=$((${NIC} + 1)) && CMDLINE["mac${NIC}"]="${MAC}"
+done
+CMDLINE['netif_num']="${NIC}"
+
+if [ "${MACSYS}" = "hardware" ]; then
+  CMDLINE['skip_vender_mac_interfaces']="0,1,2,3,4,5,6,7"
+elif [ "${MACSYS}" = "custom" ]; then
+  CMDLINE['skip_vender_mac_interfaces']="$(seq -s, ${NIC} 7)"
+fi
+
+# set fixed cmdline
 if grep -q "force_junior" /proc/cmdline; then
   CMDLINE['force_junior']=""
 fi
@@ -106,33 +122,30 @@ else
   CMDLINE['noefi']=""
 fi
 if [ ! "${BUS}" = "usb" ]; then
-  SIZE=$(($(cat /sys/block/${LOADER_DISK/\/dev\//}/size) / 2048 + 10))
+  SZ=$(blockdev --getsz ${LOADER_DISK} 2>/dev/null)  # SZ=$(cat /sys/block/${LOADER_DISK/\/dev\//}/size)
+  SS=$(blockdev --getss ${LOADER_DISK} 2>/dev/null)  # SS=$(cat /sys/block/${LOADER_DISK/\/dev\//}/queue/hw_sector_size)
+  SIZE=$((${SZ} * ${SS} / 1024 / 1024 + 10))
   # Read SATADoM type
   DOM="$(readModelKey "${MODEL}" "dom")"
   CMDLINE['synoboot_satadom']="${DOM}"
   CMDLINE['dom_szmax']="${SIZE}"
 fi
-MODELID="$(readModelKey ${MODEL} "id")"
-CMDLINE['syno_hw_version']="${MODELID:-${MODEL}}"
-[ -z "${VID}" ] && VID="0x46f4" # Sanity check
-[ -z "${PID}" ] && PID="0x0001" # Sanity check
-CMDLINE['vid']="${VID}"
-CMDLINE['pid']="${PID}"
-CMDLINE['panic']="${KERNELPANIC:-5}"
+CMDLINE['panic']="${KERNELPANIC:-0}"
 CMDLINE['console']="ttyS0,115200n8"
 CMDLINE['no_console_suspend']="1"
 CMDLINE['consoleblank']="0"
 CMDLINE['earlyprintk']=""
 CMDLINE['earlycon']="uart8250,io,0x3f8,115200n8"
+
+# eMMC Boot
 if [ "${EMMCBOOT}" = "false" ]; then
   CMDLINE['root']="/dev/md0"
 elif [ "${EMMCBOOT}" = "true" ]; then
   CMDLINE['root']="/dev/mmcblk0p1"
 fi
+
 CMDLINE['loglevel']="15"
 CMDLINE['log_buf_len']="32M"
-CMDLINE['net.ifnames']="0"
-CMDLINE['sn']="${SN}"
 
 if [ -n "$(ls /dev/mmcblk* 2>/dev/null)" ] && [ ! "${BUS}" = "mmc" ] && [ ! "${EMMCBOOT}" = "true" ]; then
   [ ! "${CMDLINE['modprobe.blacklist']}" = "" ] && CMDLINE['modprobe.blacklist']+=","
@@ -144,38 +157,13 @@ if [ "$(readModelKey "${MODEL}" "dt")" = "true" ] && ! echo "epyc7002 purley bro
   CMDLINE['modprobe.blacklist']+="mpt3sas"
 fi
 
-NIC=0
-if [ "${MACSYS}" = "arc" ]; then
-  MAC="$(readConfigKey "mac.eth0" "${USER_CONFIG_FILE}")"
-  [ -n "${MAC}" ] && CMDLINE["mac1"]="${MAC}"
-  for ETH in ${ETHX}; do
-    NIC=$((${NIC} + 1))
-  done
-  CMDLINE['netif_num']="1"
-  CMDLINE['skip_vender_mac_interfaces']="0,1,2,3,4,5,6,7"
-elif [ "${MACSYS}" = "hardware" ]; then
-  for ETH in ${ETHX}; do
-    MAC="$(readConfigKey "mac.${ETH}" "${USER_CONFIG_FILE}")"
-    [ -n "${MAC}" ] && NIC=$((${NIC} + 1)) && CMDLINE["mac${NIC}"]="${MAC}"
-  done
-  CMDLINE['netif_num']="${NIC}"
-  CMDLINE['skip_vender_mac_interfaces']="0,1,2,3,4,5,6,7"
-elif [ "${MACSYS}" = "custom" ]; then
-  for ETH in ${ETHX}; do
-    MAC="$(readConfigKey "mac.${ETH}" "${USER_CONFIG_FILE}")"
-    [ -n "${MAC}" ] && NIC=$((${NIC} + 1)) && CMDLINE["mac${NIC}"]="${MAC}"
-  done
-  CMDLINE['netif_num']="${NIC}"
-  CMDLINE['skip_vender_mac_interfaces']="$(seq -s, ${NIC} 7)"
-fi
-
 # Read cmdline
 while IFS=': ' read -r KEY VALUE; do
   [ -n "${KEY}" ] && CMDLINE["${KEY}"]="${VALUE}"
-done < <(readModelMap "${MODEL}" "productvers.[${PRODUCTVER}].cmdline")
+done <<<$(readModelMap "${MODEL}" "productvers.[${PRODUCTVER}].cmdline")
 while IFS=': ' read -r KEY VALUE; do
   [ -n "${KEY}" ] && CMDLINE["${KEY}"]="${VALUE}"
-done < <(readConfigMap "cmdline" "${USER_CONFIG_FILE}")
+done <<<$(readConfigMap "cmdline" "${USER_CONFIG_FILE}")
 
 # Prepare command line
 CMDLINE_LINE=""
@@ -191,32 +179,32 @@ if [ "${DIRECTBOOT}" = "true" ]; then
   CMDLINE_DIRECT=$(echo ${CMDLINE_LINE} | sed 's/>/\\\\>/g') # Escape special chars
   grub-editenv ${GRUB_PATH}/grubenv set dsm_cmdline="${CMDLINE_DIRECT}"
   grub-editenv ${GRUB_PATH}/grubenv set next_entry="direct"
-  echo -e " \033[1;34mReboot with Directboot\033[0m"
+  echo -e "\033[1;34mReboot with Directboot\033[0m"
   exec reboot
 elif [ "${DIRECTBOOT}" = "false" ]; then
   BOOTIPWAIT="$(readConfigKey "arc.bootipwait" "${USER_CONFIG_FILE}")"
-  echo -e " \033[1;34mDetected ${NIC} NIC.\033[0m \033[1;37mWaiting for Connection:\033[0m"
+  echo -e "\033[1;34mDetected ${NIC} NIC.\033[0m \033[1;37mWaiting for Connection:\033[0m"
   for ETH in ${ETHX}; do
     IP=""
-    DRIVER=$(ls -ld /sys/class/net/${ETH}/device/driver 2>/dev/null | awk -F '/' '{print $NF}')
+    DRIVER="$(ls -ld /sys/class/net/${ETH}/device/driver 2>/dev/null | awk -F '/' '{print $NF}')"
     COUNT=0
     while true; do
       IP="$(getIP ${ETH})"
       MSG="DHCP"
       if [ -n "${IP}" ]; then
-        SPEED=$(ethtool ${ETH} | grep "Speed:" | awk '{print $2}')
-        echo -e "\r \033[1;37m${DRIVER} (${SPEED} | ${MSG}):\033[0m Access \033[1;34mhttp://${IP}:5000\033[0m to connect to DSM via web."
+        SPEED=$(ethtool ${ETH} 2>/dev/null | grep "Speed:" | awk '{print $2}')
+        echo -e "\r\033[1;37m${DRIVER} (${SPEED} | ${MSG}):\033[0m Access \033[1;34mhttp://${IP}:5000\033[0m to connect to DSM via web."
         ethtool -s ${ETH} wol g 2>/dev/null
         [ ! -n "${IPCON}" ] && IPCON="${IP}"
         break
       fi
       if [ ${COUNT} -gt ${BOOTIPWAIT} ]; then
-        echo -e "\r \033[1;37m${DRIVER}:\033[0m TIMEOUT"
+        echo -e "\r\033[1;37m${DRIVER}:\033[0m TIMEOUT"
         break
       fi
       sleep 3
-      if ethtool ${ETH} | grep 'Link detected' | grep -q 'no'; then
-        echo -e "\r \033[1;37m${DRIVER}:\033[0m NOT CONNECTED"
+      if ethtool ${ETH} 2>/dev/null | grep 'Link detected' | grep -q 'no'; then
+        echo -e "\r\033[1;37m${DRIVER}:\033[0m NOT CONNECTED"
         break
       fi
       COUNT=$((${COUNT} + 3))
@@ -240,19 +228,19 @@ elif [ "${DIRECTBOOT}" = "false" ]; then
   done
   rm -f WB WC
   echo -en "\r$(printf "%$((${#MSG} * 2))s" " ")\n"
-  echo -e " \033[1;37mLoading DSM kernel...\033[0m"
+  echo -e "\033[1;37mLoading DSM kernel...\033[0m"
 
   # Executes DSM kernel via KEXEC
   kexec -l "${MOD_ZIMAGE_FILE}" --initrd "${MOD_RDGZ_FILE}" --command-line="${CMDLINE_LINE}" >"${LOG_FILE}" 2>&1 || dieLog
-  echo -e " \033[1;37m"Booting DSM..."\033[0m"
+  echo -e "\033[1;37m"Booting DSM..."\033[0m"
   for T in $(w | grep -v "TTY" | awk -F' ' '{print $2}')
   do
-    echo -e "\n \033[1;37mThis interface will not be operational. Wait a few minutes.\033[0m\n Use \033[1;34mhttp://${IPCON}:5000\033[0m or try \033[1;34mhttp://find.synology.com/ \033[0mto find DSM and proceed.\n" >"/dev/${T}" 2>/dev/null || true
+    echo -e "\n\033[1;37mThis interface will not be operational. Wait a few minutes.\033[0m\n Use \033[1;34mhttp://${IPCON}:5000\033[0m or try \033[1;34mhttp://find.synology.com/ \033[0mto find DSM and proceed.\n" >"/dev/${T}" 2>/dev/null || true
   done
 
   # Clear logs for dbgutils addons
   rm -rf "${PART1_PATH}/logs" >/dev/null 2>&1 || true
 
-  [ "${KERNELLOAD}" = "kexec" ] && kexec -f -e || poweroff
+  [ "${KERNELLOAD}" = "kexec" ] && kexec -i -a -e || poweroff
   exit 0
 fi
