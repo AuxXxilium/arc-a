@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+###############################################################################
+# Overlay Init Section
 [[ -z "${ARC_PATH}" || ! -d "${ARC_PATH}/include" ]] && ARC_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 . ${ARC_PATH}/include/functions.sh
@@ -7,17 +9,14 @@
 . ${ARC_PATH}/include/modules.sh
 . ${ARC_PATH}/include/storage.sh
 . ${ARC_PATH}/include/network.sh
+. ${ARC_PATH}/arc-functions.sh
 
 [ -z "${LOADER_DISK}" ] && die "Loader Disk not found!"
 
 # Memory: Check Memory installed
-RAMTOTAL=0
-while read -r LINE; do
-  RAMSIZE=${LINE}
-  RAMTOTAL=$((${RAMTOTAL} + ${RAMSIZE}))
-done < <(dmidecode -t memory | grep -i "Size" | cut -d" " -f2 | grep -i "[1-9]")
-RAMTOTAL=$((${RAMTOTAL} * 1024))
-[ -z "${RAMTOTAL}" ] || [ ${RAMTOTAL} -le 0 ] && RAMMAX=8192
+RAMFREE=$(($(free -m | grep -i mem | awk '{print$2}') / 1024 + 1))
+RAMTOTAL=$((${RAMFREE} * 1024))
+[ -z "${RAMTOTAL}" ] || [ ${RAMTOTAL} -le 0 ] && RAMTOTAL=8192
 RAMMAX=$((${RAMTOTAL} * 2))
 RAMMIN=$((${RAMTOTAL} / 2))
 
@@ -161,7 +160,7 @@ function arcModel() {
 }
 
 ###############################################################################
-# Shows menu to user type one or generate randomly
+# Arc Version Section
 function arcVersion() {
   # read model values for arcbuild
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
@@ -178,25 +177,26 @@ function arcVersion() {
   writeConfigKey "synoinfo" "{}" "${USER_CONFIG_FILE}"
   while IFS=': ' read -r KEY VALUE; do
     writeConfigKey "synoinfo.\"${KEY}\"" "${VALUE}" "${USER_CONFIG_FILE}"
-  done < <(readModelMap "${MODEL}" "productvers.[${PRODUCTVER}].synoinfo")
+  done <<<$(readModelMap "${MODEL}" "productvers.[${PRODUCTVER}].synoinfo")
   # Reset modules
   writeConfigKey "modules" "{}" "${USER_CONFIG_FILE}"
   while read -r ID DESC; do
     writeConfigKey "modules.\"${ID}\"" "" "${USER_CONFIG_FILE}"
-  done < <(getAllModules "${PLATFORM}" "${KVER}")
-  arcSettings
+  done <<<$(getAllModules "${PLATFORM}" "${KVER}")
+  arcPatch
 }
 
 ###############################################################################
-# Make Arc Settings
-function arcSettings() {
+# Arc Patch Section
+function arcPatch() {
   # Read Model Values
   MODEL="$(readConfigKey "model" "${USER_CONFIG_FILE}")"
   DT="$(readModelKey "${MODEL}" "dt")"
   # Read Arc Patch from File
   SN="$(readModelKey "${MODEL}" "arc.serial")"
-  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
   writeConfigKey "arc.patch" "true" "${USER_CONFIG_FILE}"
+  writeConfigKey "arc.sn" "${SN}" "${USER_CONFIG_FILE}"
+  # Addon Selection
   writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.cpuinfo" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.expands" "" "${USER_CONFIG_FILE}"
@@ -210,6 +210,12 @@ function arcSettings() {
     deleteConfigKey "addons.acpid" "${USER_CONFIG_FILE}"
   fi
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
+  arcSettings
+}
+
+###############################################################################
+# Arc Settings Section
+function arcSettings() {
   # Get Network Config for Loader
   dialog --backtitle "$(backtitle)" --colors --title "Network Config" \
     --infobox "Network Config..." 3 30
@@ -269,7 +275,7 @@ function premake() {
     MODULESCOPY="false"
     writeConfigKey "arc.modulescopy" "${MODULESCOPY}" "${USER_CONFIG_FILE}"
   fi
-  # Make Loader
+  # Build Loader
   make
 }
 
@@ -299,7 +305,7 @@ function make() {
         --infobox "Addon ${ADDON} not found!" 0 0
       return 1
     fi
-  done < <(readConfigMap "addons" "${USER_CONFIG_FILE}")
+  done <<<$(readConfigMap "addons" "${USER_CONFIG_FILE}")
   dialog --backtitle "$(backtitle)" --colors --title "Arc Build" \
     --infobox "Get PAT Data from Syno..." 3 30
   # Get PAT Data from Syno

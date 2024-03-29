@@ -8,6 +8,9 @@ set -e
 
 [ -z "${LOADER_DISK}" ] && die "Loader Disk not found!"
 
+# Get Loader Disk Bus
+BUS=$(getBus "${LOADER_DISK}")
+
 # Shows title
 clear
 [ -z "${COLUMNS}" ] && COLUMNS=50
@@ -71,7 +74,7 @@ else
 fi
 
 # Init Network
-ETHX=$(ls /sys/class/net/ | grep -v lo) || true
+ETHX=$(ls /sys/class/net/ 2>/dev/null | grep eth) || true
 MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
 # Write Mac to config
 NIC=0
@@ -102,7 +105,6 @@ writeConfigKey "device.nic" "${NIC}" "${USER_CONFIG_FILE}"
 # Get the VID/PID if we are in USB
 VID="0x46f4"
 PID="0x0001"
-BUS=$(getBus "${LOADER_DISK}")
 
 if [ "${BUS}" = "usb" ]; then
   VID="0x$(udevadm info --query property --name "${LOADER_DISK}" | grep ID_VENDOR_ID | cut -d= -f2)"
@@ -150,7 +152,7 @@ echo -e "\033[1;34mDetected ${NIC} NIC.\033[0m \033[1;37mWaiting for Connection:
 for ETH in ${ETHX}; do
   IP=""
   STATICIP="$(readConfigKey "static.${ETH}" "${USER_CONFIG_FILE}")"
-  DRIVER=$(ls -ld /sys/class/net/${ETH}/device/driver 2>/dev/null | awk -F '/' '{print $NF}')
+  DRIVER="$(ls -ld /sys/class/net/${ETH}/device/driver 2>/dev/null | awk -F '/' '{print $NF}')"
   COUNT=0
   while true; do
     ARCIP="$(readConfigKey "ip.${ETH}" "${USER_CONFIG_FILE}")"
@@ -167,7 +169,7 @@ for ETH in ${ETHX}; do
       MSG="DHCP"
     fi
     if [ -n "${IP}" ]; then
-      SPEED=$(ethtool ${ETH} | grep "Speed:" | awk '{print $2}')
+      SPEED=$(ethtool ${ETH} 2>/dev/null | grep "Speed:" | awk '{print $2}')
       writeConfigKey "ip.${ETH}" "${IP}" "${USER_CONFIG_FILE}"
       echo -e "\r\033[1;37m${DRIVER} (${SPEED} | ${MSG}):\033[0m Access \033[1;34mhttp://${IP}:7681\033[0m to connect to Arc via web."
       ethtool -s ${ETH} wol g 2>/dev/null
@@ -179,7 +181,7 @@ for ETH in ${ETHX}; do
       break
     fi
     sleep 3
-    if ethtool ${ETH} | grep 'Link detected' | grep -q 'no'; then
+    if ethtool ${ETH} 2>/dev/null | grep 'Link detected' | grep -q 'no'; then
       echo -e "\r\033[1;37m${DRIVER}:\033[0m NOT CONNECTED"
       deleteConfigKey "ip.${ETH}" "${USER_CONFIG_FILE}"
       break
@@ -203,10 +205,9 @@ mkdir -p "${MODEL_CONFIG_PATH}"
 mkdir -p "${PATCH_PATH}"
 mkdir -p "${BACKUPDIR}"
 
-# Load Arc
-updateAddons
+# Load Arc Overlay
 echo -e "\033[1;34mLoading Arc Overlay...\033[0m"
 sleep 2
 
-# Load Arc Overlay
+# Load Arc
 arc.sh
