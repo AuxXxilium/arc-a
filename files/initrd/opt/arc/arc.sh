@@ -205,6 +205,10 @@ function arcPatch() {
   writeConfigKey "addons.nvmevolume" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.powersched" "" "${USER_CONFIG_FILE}"
   writeConfigKey "addons.storagepanel" "" "${USER_CONFIG_FILE}"
+  # Check for ACPI Support
+  if ! grep -q "^flags.*acpi.*" /proc/cpuinfo; then
+    deleteConfigKey "addons.acpid" "${USER_CONFIG_FILE}"
+  fi
   ARCPATCH="$(readConfigKey "arc.patch" "${USER_CONFIG_FILE}")"
   arcSettings
 }
