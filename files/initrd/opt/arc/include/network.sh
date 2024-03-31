@@ -8,6 +8,7 @@ function getnet() {
     [ -n "${ARCMAC}" ] && writeConfigKey "mac.${ETH}" "${ARCMAC}" "${USER_CONFIG_FILE}"
     [ -z "${ARCMAC}" ] && break
     ARCMACNUM=$((${ARCMACNUM} + 1))
+    ARCMAC=""
   done
   writeConfigKey "arc.macsys" "hardware" "${USER_CONFIG_FILE}"
   MACSYS="$(readConfigKey "arc.macsys" "${USER_CONFIG_FILE}")"
