@@ -11,29 +11,20 @@ BUS=$(getBus "${LOADER_DISK}")
 # Check if machine has EFI
 [ -d /sys/firmware/efi ] && EFI=1 || EFI=0
 
-# Print text centralized
+# Print Title centralized
 clear
 COLUMNS=${COLUMNS:-50}
-TITLE="${ARC_TITLE}"
+BANNER="$(figlet -c -w "$(((${COLUMNS})))" "Arc-A Loader")"
+TITLE="Version:"
+TITLE+=" ${ARC_TITLE}"
 printf "\033[1;30m%*s\n" ${COLUMNS} ""
 printf "\033[1;30m%*s\033[A\n" ${COLUMNS} ""
+printf "\033[1;34m%*s\033[0m\n" ${COLUMNS} "${BANNER}"
 printf "\033[1;34m%*s\033[0m\n" $(((${#TITLE} + ${COLUMNS}) / 2)) "${TITLE}"
 printf "\033[1;30m%*s\033[0m\n" ${COLUMNS} ""
-TITLE="BOOTING:"
-[ ${EFI} -eq 1 ] && TITLE+=" [UEFI]" || TITLE+=" [Legacy]"
+[ ${EFI} -eq 1 ] && TITLE="[UEFI]" || TITLE="[Legacy]"
 TITLE+=" [${BUS}]"
 printf "\033[1;34m%*s\033[0m\n" $(((${#TITLE} + ${COLUMNS}) / 2)) "${TITLE}"
-
-echo
-cat <<EOF
-    ###    #####    ####           ###
-   #   #   #    #  #    #         #   #
-  #     #  #    #  #             #     #
-  #######  #####   #       ###   #######
-  #     #  #   #   #    #        #     #
-  #     #  #    #   ####         #     #
-EOF
-echo
 
 # Check if DSM zImage/Ramdisk is changed, patch it if necessary, update Files if necessary
 ZIMAGE_HASH="$(readConfigKey "zimage-hash" "${USER_CONFIG_FILE}")"
@@ -132,8 +123,8 @@ if [ ! "${BUS}" = "usb" ]; then
 fi
 CMDLINE['panic']="${KERNELPANIC:-0}"
 CMDLINE['console']="ttyS0,115200n8"
-CMDLINE['no_console_suspend']="1"
-CMDLINE['consoleblank']="0"
+#CMDLINE['no_console_suspend']="1"
+CMDLINE['consoleblank']="600"
 CMDLINE['earlyprintk']=""
 CMDLINE['earlycon']="uart8250,io,0x3f8,115200n8"
 
@@ -144,6 +135,7 @@ elif [ "${EMMCBOOT}" = "true" ]; then
   CMDLINE['root']="/dev/mmcblk0p1"
 fi
 
+[ ! "${MODEL}" = "SA6400" ] && CMDLINE['elevator']="elevator"
 CMDLINE['loglevel']="15"
 CMDLINE['log_buf_len']="32M"
 

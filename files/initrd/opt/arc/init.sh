@@ -11,12 +11,15 @@ set -e
 # Get Loader Disk Bus
 BUS=$(getBus "${LOADER_DISK}")
 
-# Shows title
+# Print Title centralized
 clear
-[ -z "${COLUMNS}" ] && COLUMNS=50
-TITLE="${ARC_TITLE}"
+COLUMNS=${COLUMNS:-50}
+BANNER="$(figlet -c -w "$(((${COLUMNS})))" "Arc-A Loader")"
+TITLE="Version:"
+TITLE+=" ${ARC_TITLE}"
 printf "\033[1;30m%*s\n" ${COLUMNS} ""
 printf "\033[1;30m%*s\033[A\n" ${COLUMNS} ""
+printf "\033[1;34m%*s\033[0m\n" ${COLUMNS} "${BANNER}"
 printf "\033[1;34m%*s\033[0m\n" $(((${#TITLE} + ${COLUMNS}) / 2)) "${TITLE}"
 printf "\033[1;30m%*s\033[0m\n" ${COLUMNS} ""
 
@@ -106,10 +109,11 @@ writeConfigKey "device.nic" "${NIC}" "${USER_CONFIG_FILE}"
 VID="0x46f4"
 PID="0x0001"
 
+BUSLIST="usb sata scsi nvme mmc"
 if [ "${BUS}" = "usb" ]; then
   VID="0x$(udevadm info --query property --name "${LOADER_DISK}" | grep ID_VENDOR_ID | cut -d= -f2)"
   PID="0x$(udevadm info --query property --name "${LOADER_DISK}" | grep ID_MODEL_ID | cut -d= -f2)"
-elif [[ "${BUS}" != "sata" && "${BUS}" != "scsi" && "${BUS}" != "nvme" && "${BUS}" != "mmc" ]]; then
+elif ! echo "${BUSLIST}" | grep -wq "${BUS}"; then
   die "Loader disk is not USB or SATA/SCSI/NVME/eMMC DoM"
 fi
 
